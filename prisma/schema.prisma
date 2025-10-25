@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum TypeEnum {
+  twoNumberTop
+  twoNumberButton
+  threeNumberTop
+  threeNumberButton
+}
+
+model Item {
+  id       Int      @id @default(autoincrement())
+  type     TypeEnum
+  number   Int
+  text     String
+  amount   Decimal  @db.Decimal(10,2)
+  state    String
+  iswon    Boolean? @default(false)
+
+  Bill     Bill     @relation(fields: [billId], references: [id])
+  billId   Int
+
+  @@map("item")
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  username    String        @unique
+  password    String
+  createAt    DateTime      @default(now())
+
+  bills       Bill[]
+  closenumbers CloseNumber[]
+  limitnumbers LimitNumber[]
+  rates       Rate[]
+
+  @@map("user")
+}
+
+model CloseNumber {
+  id       Int      @id @default(autoincrement())
+  type     TypeEnum
+  number   Int?
+  text     String
+  dateEnd  DateTime
+
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+
+  @@map("closenumber")
+}
+
+model Bill {
+  id       Int      @id @default(autoincrement())
+  amount   Decimal  @db.Decimal(10,2)
+  state    Boolean  @default(true)
+  remark   String?
+  createAt DateTime @default(now())
+  dateEnd  DateTime
+
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+
+  items    Item[]
+
+  @@map("bill")
+}
+
+model LimitNumber {
+  id          Int      @id @default(autoincrement())
+  type        TypeEnum
+  text        String
+  number      Int
+  amountlimit Decimal  @db.Decimal(10,2)
+  used        Decimal  @db.Decimal(10,2)
+  dateEnd     DateTime
+
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+
+  @@map("limitnumber")
+}
+
+model Rate {
+  id      Int      @id @default(autoincrement())
+  type    TypeEnum
+  text    String
+  price   Decimal  @db.Decimal(10,2)
+
+  user    User    @relation(fields: [userId], references: [id])
+  userId  Int
+
+  @@map("rate")
+}

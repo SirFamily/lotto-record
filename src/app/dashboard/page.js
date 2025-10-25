@@ -3,15 +3,14 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 
-export default function Home() {
+export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard');
+    if (!loading && !user) {
+      router.push('/login'); // Redirect to login if not authenticated
     }
   }, [user, loading, router]);
 
@@ -19,28 +18,22 @@ export default function Home() {
     return <p>Loading...</p>;
   }
 
+  if (!user) {
+    return null; // Or a loading spinner, or a message indicating redirection
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black sm:items-start">
         <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50 mb-8">
-          Welcome to the Home Page!
+          Dashboard
         </h1>
-        {!user && (
-          <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-            <Link
-              href="/login"
-              className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-            >
-              Register
-            </Link>
-          </div>
-        )}
+        <p className="text-lg text-zinc-600 dark:text-zinc-400">
+          Welcome to your dashboard, {user.username}!
+        </p>
+        <p className="text-lg text-zinc-600 dark:text-zinc-400 mt-4">
+          This is a protected page.
+        </p>
       </main>
     </div>
   );

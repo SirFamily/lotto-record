@@ -24,6 +24,16 @@ export async function POST(request) {
       },
     });
 
+    // Create default rates for the new user
+    await prisma.rate.createMany({
+      data: [
+        { userId: user.id, type: 'twoNumberTop', text: '2 ตัวบน', price: 100 },
+        { userId: user.id, type: 'twoNumberButton', text: '2 ตัวล่าง', price: 100 },
+        { userId: user.id, type: 'threeNumberTop', text: '3 ตัวบน', price: 800 },
+        { userId: user.id, type: 'threeNumberTode', text: '3 ตัวโต๊ด', price: 125 },
+      ],
+    });
+
     return NextResponse.json({ message: 'User registered successfully', user: { id: user.id, username: user.username } }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);

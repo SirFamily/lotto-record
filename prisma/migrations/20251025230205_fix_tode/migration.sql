@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE `item` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberButton') NOT NULL,
+    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberTode') NOT NULL,
     `number` INTEGER NOT NULL,
     `text` VARCHAR(191) NOT NULL,
     `amount` DECIMAL(10, 2) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `user` (
 -- CreateTable
 CREATE TABLE `closenumber` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberButton') NOT NULL,
+    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberTode') NOT NULL,
     `number` INTEGER NULL,
     `text` VARCHAR(191) NOT NULL,
     `dateEnd` DATETIME(3) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE `bill` (
 -- CreateTable
 CREATE TABLE `limitnumber` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberButton') NOT NULL,
+    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberTode') NOT NULL,
     `text` VARCHAR(191) NOT NULL,
     `number` INTEGER NOT NULL,
     `amountlimit` DECIMAL(10, 2) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE `limitnumber` (
 -- CreateTable
 CREATE TABLE `rate` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberButton') NOT NULL,
+    `type` ENUM('twoNumberTop', 'twoNumberButton', 'threeNumberTop', 'threeNumberTode') NOT NULL,
     `text` VARCHAR(191) NOT NULL,
     `price` DECIMAL(10, 2) NOT NULL,
     `userId` INTEGER NOT NULL,

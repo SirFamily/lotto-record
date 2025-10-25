@@ -13,14 +13,37 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      // In a real app, you would decode the token or fetch user data from an API
-      // For now, we'll just set a dummy user based on the presence of a token
-      setUser({ username: 'Authenticated User' }); 
-    }
-    setLoading(false);
+    const validateToken = async () => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        try {
+          const res = await fetch('/api/auth/validate-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: storedToken }),
+          });
+          const data = await res.json();
+
+          if (res.ok) {
+            setToken(storedToken);
+            setUser(data.user);
+          } else {
+            logout(); // Token invalid or expired, log out
+          }
+        } catch (err) {
+          console.error('Token validation network error:', err);
+          logout(); // Network error, log out
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    validateToken();
   }, []);
 
   const login = async (username, password) => {

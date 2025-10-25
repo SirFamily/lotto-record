@@ -18,7 +18,7 @@ enum TypeEnum {
   twoNumberTop
   twoNumberButton
   threeNumberTop
-  threeNumberButton
+  threeNumberTode
 }
 
 model Item {

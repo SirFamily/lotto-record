@@ -17,6 +17,31 @@ async function getUserIdFromToken(request) {
   }
 }
 
+export async function GET(request) {
+  const userId = await getUserIdFromToken(request);
+  if (!userId) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const bills = await prisma.bill.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        items: true, // Include all items for each bill
+      },
+      orderBy: {
+        createAt: 'desc', // Show the most recent bills first
+      },
+    });
+    return NextResponse.json(bills);
+  } catch (error) {
+    console.error('Error fetching bills:', error);
+    return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
+  }
+}
+
 export async function POST(request) {
   const userId = await getUserIdFromToken(request);
   if (!userId) {

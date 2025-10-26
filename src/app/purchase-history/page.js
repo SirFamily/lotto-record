@@ -23,18 +23,18 @@ export default function PurchaseHistoryPage() {
         setError('');
         setLoading(true);
         const res = await fetch('/api/bills', {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.message || 'Failed to fetch purchase history.');
+          throw new Error(errorData.message || 'ไม่สามารถดึงประวัติโพยได้');
         }
 
         const data = await res.json();
         setBills(data);
       } catch (err) {
-        console.error("Error fetching bills:", err);
+        console.error('Error fetching bills:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -44,39 +44,67 @@ export default function PurchaseHistoryPage() {
     fetchBills();
   }, [token]);
 
-  const handleSelectBill = (bill) => {
-    setSelectedBill(bill);
-  };
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
+        กำลังโหลดประวัติโพย...
+      </div>
+    );
+  }
 
-  const handleCloseModal = () => {
-    setSelectedBill(null);
-  };
-
-  if (loading) return <p className="text-center mt-8">Loading history...</p>;
-  if (error) return <p className="text-center mt-8 text-red-500">Error: {error}</p>;
+  if (error) {
+    return (
+      <div className="card px-6 py-8 text-center text-sm text-[#7f1d1d] border border-[#fca5a5] bg-[#fff5f5]">
+        เกิดข้อผิดพลาด: {error}
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">ประวัติการซื้อ</h1>
-      
-      <div className="space-y-4">
+    <div className="mobile-stack pb-8">
+      <section className="card p-6 sm:p-8">
+        <div className="pill">ประวัติโพย</div>
+        <h1 className="section-heading mt-4">ตรวจสอบโพยย้อนหลังได้ทุกเมื่อ</h1>
+        <p className="section-copy mt-3">
+          เลือกโพยเพื่อดูรายละเอียดเลขและสถานะอย่างละเอียด ช่วยตรวจสอบยอดก่อนปิดรอบและติดตามการขายได้ง่ายขึ้น
+        </p>
+      </section>
+
+      <section className="mobile-stack">
         {bills.length === 0 ? (
-          <p className="text-center text-gray-500 dark:text-gray-400">ไม่พบประวัติการซื้อ</p>
+          <div className="card px-5 py-6 text-center text-sm text-[--color-text-muted]">
+            ยังไม่มีประวัติโพยในระบบ
+          </div>
         ) : (
-          bills.map(bill => (
-            <div key={bill.id} className="bg-white dark:bg-zinc-800 rounded-lg shadow-md border border-gray-200 dark:border-zinc-700 overflow-hidden">
-              <BillHeader bill={bill} onToggle={() => handleSelectBill(bill)} />
-            </div>
-          ))
+          <div className="mobile-stack">
+            {bills.map((bill) => (
+              <BillHeader key={bill.id} bill={bill} onToggle={() => setSelectedBill(bill)} />
+            ))}
+          </div>
         )}
-      </div>
+      </section>
 
       {selectedBill && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50" onClick={handleCloseModal}>
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b dark:border-zinc-700 flex justify-between items-center">
-                <h2 className="text-xl font-bold">รายละเอียดบิล ID: {String(selectedBill.id).slice(-8)}</h2>
-                <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setSelectedBill(null)}
+        >
+          <div
+            className="card w-full max-w-3xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[--color-border] px-5 py-4">
+              <p className="text-sm font-semibold text-[--color-text]">
+                รายละเอียดโพย #{String(selectedBill.id).slice(-8).toUpperCase()}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedBill(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-md border border-[--color-border]"
+                aria-label="ปิดหน้าต่างรายละเอียดโพย"
+              >
+                ×
+              </button>
             </div>
             <BillDetails bill={selectedBill} />
           </div>

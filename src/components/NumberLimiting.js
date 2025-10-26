@@ -1,21 +1,27 @@
-import { useState, useEffect, useMemo } from 'react';
+'use client';
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
+
+const typeOptions = [
+  { value: 'twoNumberTop', label: '2 ตัวบน', digits: 2 },
+  { value: 'twoNumberButton', label: '2 ตัวล่าง', digits: 2 },
+  { value: 'threeNumberTop', label: '3 ตัวบน', digits: 3 },
+  { value: 'threeNumberTode', label: '3 ตัวโต๊ด', digits: 3 },
+];
+
 const typeToThaiText = (type) => {
-  switch (type) {
-    case 'twoNumberTop': return '2 ตัวบน';
-    case 'twoNumberButton': return '2 ตัวล่าง';
-    case 'threeNumberTop': return '3 ตัวบน';
-    case 'threeNumberTode': return '3 ตัวโต๊ด';
-    default: return '';
-  }
+  const option = typeOptions.find((opt) => opt.value === type);
+  return option ? option.label : 'ไม่ทราบประเภท';
 };
 
 export default function NumberLimiting() {
   const { token } = useAuth();
-  const [allLimitNumbers, setAllLimitNumbers] = useState([]); // Stores all limited numbers
-  const [allClosedNumbers, setAllClosedNumbers] = useState([]); // Stores all closed numbers
+  const [allLimitNumbers, setAllLimitNumbers] = useState([]);
+  const [allClosedNumbers, setAllClosedNumbers] = useState([]);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('info');
   const [newLimitNumber, setNewLimitNumber] = useState({
     type: 'twoNumberTop',
     number: '',
@@ -24,148 +30,129 @@ export default function NumberLimiting() {
   const [editingLimitId, setEditingLimitId] = useState(null);
   const [newLimitAmount, setNewLimitAmount] = useState('');
 
-  // Filtered limit numbers for display based on newLimitNumber.type
-  const limitNumbersForDisplay = useMemo(() => {
-    return allLimitNumbers.filter(ln => ln.type === newLimitNumber.type);
-  }, [allLimitNumbers, newLimitNumber.type]);
+  const displayLimits = useMemo(
+    () => allLimitNumbers.filter((ln) => ln.type === newLimitNumber.type),
+    [allLimitNumbers, newLimitNumber.type],
+  );
 
-  useEffect(() => {
-    if (token) {
-      fetchAllLimitNumbers();
-      fetchAllClosedNumbers();
-    }
-  }, [token]);
+  const showMessage = (text, type = 'info') => {
+    setMessage(text);
+    setMessageType(type);
+  };
 
-  const fetchAllLimitNumbers = async () => {
+  const fetchAllLimitNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/limit-numbers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok) {
         setAllLimitNumbers(data);
+        showMessage('');
       } else {
-        setMessage(data.message || 'Failed to fetch limit numbers');
+        showMessage(data.message || 'ไม่สามารถดึงเลขอั้นได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error fetching limit numbers');
       console.error('Error fetching limit numbers:', error);
+      showMessage('เกิดข้อผิดพลาดในการดึงเลขอั้น', 'error');
     }
-  };
+  }, [token]);
 
-  const fetchAllClosedNumbers = async () => {
+  const fetchAllClosedNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/close-numbers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok) {
         setAllClosedNumbers(data);
       } else {
-        setMessage(data.message || 'Failed to fetch closed numbers for conflict check');
+        showMessage(data.message || 'ไม่สามารถตรวจสอบเลขปิดได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error fetching closed numbers for conflict check');
-      console.error('Error fetching closed numbers for conflict check:', error);
+      console.error('Error fetching closed numbers:', error);
+      showMessage('เกิดข้อผิดพลาดในการตรวจสอบเลขปิด', 'error');
     }
-  };
+  }, [token]);
 
-  const isNumberClosed = (type, number) => {
-    return allClosedNumbers.some(cn => cn.number === number && cn.type === type);
-  };
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      await fetchAllLimitNumbers();
+      await fetchAllClosedNumbers();
+    })();
+  }, [token, fetchAllLimitNumbers, fetchAllClosedNumbers]);
 
-  const isNumberLimited = (type, number) => {
-    return allLimitNumbers.some(ln => ln.number === number && ln.type === type);
-  };
+  const isNumberClosed = (type, number) =>
+    allClosedNumbers.some((cn) => cn.number === number && cn.type === type);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
     if (name === 'number') {
-      const maxLength = newLimitNumber.type.includes('three') ? 3 : 2;
-      if (value.length > maxLength) {
-        setMessage(`Number cannot exceed ${maxLength} digits for ${typeToThaiText(newLimitNumber.type)}.`);
+      const option = typeOptions.find((opt) => opt.value === newLimitNumber.type) ?? typeOptions[0];
+      if (!/^\d*$/.test(value)) {
+        showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
         return;
       }
-      // Ensure only digits are entered
-      if (!/^[0-9]*$/.test(value)) {
-        setMessage('Number can only contain digits.');
+      if (value.length > option.digits) {
+        showMessage(`เลขประเภทนี้ต้องมี ${option.digits} หลัก`, 'warning');
         return;
       }
     }
-
-    setNewLimitNumber((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    setMessage(''); // Clear message on valid input change
+    setNewLimitNumber((prev) => ({ ...prev, [name]: value }));
+    showMessage('');
   };
 
   const handleAddLimit = async (e) => {
     e.preventDefault();
-    setMessage('');
-
-    const limitText = typeToThaiText(newLimitNumber.type);
-    const maxLength = newLimitNumber.type.includes('three') ? 3 : 2;
-
-    // Final client-side validation before API call
-    if (newLimitNumber.number.length !== maxLength) {
-      setMessage(`Number must be exactly ${maxLength} digits for ${typeToThaiText(newLimitNumber.type)}.`);
+    const option = typeOptions.find((opt) => opt.value === newLimitNumber.type) ?? typeOptions[0];
+    const sanitizedNumber = newLimitNumber.number.trim();
+    if (sanitizedNumber.length !== option.digits) {
+      showMessage(`กรุณากรอกเลขให้ครบ ${option.digits} หลัก`, 'warning');
+      return;
+    }
+    if (!/^\d+$/.test(sanitizedNumber)) {
+      showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
       return;
     }
 
-    // Fetch latest data from DB for real-time check
     const latestClosedRes = await fetch('/api/close-numbers', {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
-    const latestClosedData = await latestClosedRes.json();
-    const latestAllClosedNumbers = latestClosedRes.ok ? latestClosedData : [];
-
-    const latestLimitedRes = await fetch('/api/limit-numbers', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    const latestLimitedData = await latestLimitedRes.json();
-    const latestAllLimitNumbers = latestLimitedRes.ok ? latestLimitedData : [];
-
-    const isNumberCurrentlyClosed = latestAllClosedNumbers.some(cn => cn.number === newLimitNumber.number && cn.type === newLimitNumber.type);
-    const isNumberCurrentlyLimited = latestAllLimitNumbers.some(ln => ln.number === newLimitNumber.number && ln.type === newLimitNumber.type);
-
-    if (isNumberCurrentlyClosed) {
-      setMessage('Cannot limit a number that is already closed.');
-      return;
-    }
-
-    if (isNumberCurrentlyLimited) {
-      setMessage('This number is already limited.');
+    const latestClosed = latestClosedRes.ok ? await latestClosedRes.json() : [];
+    const isClosed = latestClosed.some(
+      (cn) => cn.number === sanitizedNumber && cn.type === newLimitNumber.type,
+    );
+    if (isClosed) {
+      showMessage('เลขนี้ถูกปิดรับอยู่ ไม่สามารถจำกัดยอดได้', 'warning');
       return;
     }
 
     try {
-      const dateEnd = calculateDateEnd(); // Calculate dateEnd
       const res = await fetch('/api/limit-numbers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...newLimitNumber, text: limitText, dateEnd }),
+        body: JSON.stringify({
+          ...newLimitNumber,
+          number: sanitizedNumber,
+          text: option.label,
+          dateEnd: calculateDateEnd(),
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage('Number limit added successfully');
-        setNewLimitNumber({ type: 'twoNumberTop', number: '', amountlimit: '', text: '' });
-        fetchAllLimitNumbers(); // Refresh local state after successful operation
-        fetchAllClosedNumbers(); // Also refresh closed numbers for conflict check consistency
+        showMessage('เพิ่มเลขอั้นเรียบร้อย', 'success');
+        setNewLimitNumber({ type: newLimitNumber.type, number: '', amountlimit: '' });
+        fetchAllLimitNumbers();
       } else {
-        setMessage(data.message || 'Failed to add number limit');
+        showMessage(data.message || 'ไม่สามารถเพิ่มเลขอั้นได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error adding number limit');
-      console.error('Error adding number limit:', error);
+      console.error('Error adding limit number:', error);
+      showMessage('เกิดข้อผิดพลาดในการเพิ่มเลขอั้น', 'error');
     }
   };
 
@@ -175,33 +162,32 @@ export default function NumberLimiting() {
   };
 
   const handleSaveLimit = async (limitId) => {
+    if (!newLimitAmount || Number(newLimitAmount) <= 0) {
+      showMessage('กรุณากรอกยอดจำกัดที่มากกว่า 0', 'warning');
+      return;
+    }
     try {
       const res = await fetch('/api/limit-numbers', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ id: limitId, amountlimit: newLimitAmount }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage('Number limit updated successfully');
+        showMessage('บันทึกยอดจำกัดเรียบร้อย', 'success');
         setEditingLimitId(null);
         setNewLimitAmount('');
         fetchAllLimitNumbers();
       } else {
-        setMessage(data.message || 'Failed to update number limit');
+        showMessage(data.message || 'ไม่สามารถอัปเดตยอดจำกัดได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error updating number limit');
-      console.error('Error updating number limit:', error);
+      console.error('Error updating limit amount:', error);
+      showMessage('เกิดข้อผิดพลาดในการอัปเดตยอดจำกัด', 'error');
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingLimitId(null);
-    setNewLimitAmount('');
   };
 
   const handleDeleteLimit = async (limitId) => {
@@ -210,147 +196,193 @@ export default function NumberLimiting() {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ id: limitId }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage('Number limit deleted successfully');
+        showMessage('ลบเลขอั้นเรียบร้อย', 'success');
         fetchAllLimitNumbers();
       } else {
-        setMessage(data.message || 'Failed to delete number limit');
+        showMessage(data.message || 'ไม่สามารถลบเลขอั้นได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error deleting number limit');
-      console.error('Error deleting number limit:', error);
+      console.error('Error deleting limit number:', error);
+      showMessage('เกิดข้อผิดพลาดในการลบเลขอั้น', 'error');
     }
   };
 
-  return (
-    <div className="w-full mt-8">
-      <h2 className="text-2xl font-semibold mb-4">Number Limiting</h2>
-      {message && <p className="text-red-500 mb-4">{message}</p>}
+  const handleCancelEdit = () => {
+    setEditingLimitId(null);
+    setNewLimitAmount('');
+  };
 
-      <form onSubmit={handleAddLimit} className="flex flex-col gap-4 mb-8 p-4 border rounded-lg dark:border-zinc-700">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="limitType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-            <select
-              id="limitType"
-              name="type"
-              value={newLimitNumber.type}
-              onChange={handleInputChange}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-            >
-              <option value="twoNumberTop">2 ตัวบน</option>
-              <option value="twoNumberButton">2 ตัวล่าง</option>
-              <option value="threeNumberTop">3 ตัวบน</option>
-              <option value="threeNumberTode">3 ตัวโต๊ด</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="limitNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Number</label>
-            <input
-              type="text"
-              id="limitNumber"
-              name="number"
-              value={newLimitNumber.number}
-              onChange={handleInputChange}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-              maxLength={newLimitNumber.type.includes('three') ? 3 : 2}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="limitAmount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Limit Amount</label>
-            <input
-              type="number"
-              id="limitAmount"
-              name="amountlimit"
-              value={newLimitNumber.amountlimit}
-              onChange={handleInputChange}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-              required
-            />
-          </div>
+  const bannerClass =
+    messageType === 'success'
+      ? 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#166534]'
+      : messageType === 'warning'
+      ? 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]'
+      : 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]';
+
+  return (
+    <div className="mobile-stack">
+      <form
+        onSubmit={handleAddLimit}
+        className="grid gap-4 rounded-md border border-[--color-border] p-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <div className="mobile-stack">
+          <label htmlFor="limitType" className="text-sm font-medium text-[--color-text]">
+            ประเภทเลข
+          </label>
+          <select
+            id="limitType"
+            name="type"
+            value={newLimitNumber.type}
+            onChange={handleInputChange}
+            className="rounded-md border border-[--color-border] px-3 py-3 text-sm"
+          >
+            {typeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <button
-          type="submit"
-          className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-        >
-          Add Limit
-        </button>
+
+        <div className="mobile-stack">
+          <label htmlFor="limitNumber" className="text-sm font-medium text-[--color-text]">
+            เลข
+          </label>
+          <input
+            id="limitNumber"
+            name="number"
+            type="text"
+            value={newLimitNumber.number}
+            onChange={handleInputChange}
+            maxLength={typeOptions.find((opt) => opt.value === newLimitNumber.type)?.digits ?? 2}
+            placeholder="เช่น 19"
+            className="rounded-md border border-[--color-border] px-3 py-3 text-sm"
+            required
+          />
+        </div>
+
+        <div className="mobile-stack">
+          <label htmlFor="limitAmount" className="text-sm font-medium text-[--color-text]">
+            ยอดรับสูงสุด (บาท)
+          </label>
+          <input
+            id="limitAmount"
+            name="amountlimit"
+            type="number"
+            min={0}
+            step="0.01"
+            value={newLimitNumber.amountlimit}
+            onChange={handleInputChange}
+            placeholder="เช่น 500"
+            className="rounded-md border border-[--color-border] px-3 py-3 text-sm"
+            required
+          />
+        </div>
+
+        <div className="flex items-end">
+          <button type="submit" className="btn-primary btn-block">
+            เพิ่มเลขอั้น
+          </button>
+        </div>
       </form>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white dark:bg-zinc-800 rounded-lg shadow overflow-hidden">
-          <thead className="bg-gray-200 dark:bg-zinc-700">
-            <tr>
-              <th className="py-2 px-4 text-left text-gray-600 dark:text-gray-300">Type</th>
-              <th className="py-2 px-4 text-left text-gray-600 dark:text-gray-300">Number</th>
-              <th className="py-2 px-4 text-left text-gray-600 dark:text-gray-300">Limit Amount</th>
-              <th className="py-2 px-4 text-left text-gray-600 dark:text-gray-300">Used</th>
-              <th className="py-2 px-4 text-left text-gray-600 dark:text-gray-300">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {limitNumbersForDisplay.map((limit) => (
-              <tr key={limit.id} className="border-b border-gray-200 dark:border-zinc-700">
-                <td className="py-2 px-4">{limit.text}</td>
-                <td className="py-2 px-4">{String(limit.number).padStart(limit.type.includes('three') ? 3 : 2, '0')}</td>
-                <td className="py-2 px-4">
-                  {editingLimitId === limit.id ? (
-                    <input
-                      type="number"
-                      value={newLimitAmount}
-                      onChange={(e) => setNewLimitAmount(e.target.value)}
-                      className="w-24 p-1 border rounded dark:bg-zinc-700 dark:text-zinc-50"
-                    />
-                  ) : (
-                    Number(limit.amountlimit).toFixed(2)
-                  )}
-                </td>
-                <td className="py-2 px-4">{Number(limit.used).toFixed(2)}</td>
-                <td className="py-2 px-4">
-                  {editingLimitId === limit.id ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveLimit(limit.id)}
-                        className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditLimit(limit)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLimit(limit.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </td>
+      {message && messageType !== 'info' && (
+        <div className={`rounded-md px-4 py-3 text-sm ${bannerClass}`}>{message}</div>
+      )}
+
+      <div className="rounded-md border border-[--color-border]">
+        <div className="flex items-center justify-between border-b border-[--color-border] px-4 py-3">
+          <p className="text-sm font-semibold text-[--color-text]">
+            รายการเลขอั้น ({typeToThaiText(newLimitNumber.type)})
+          </p>
+        </div>
+
+        <div className="table-wrapper border-none">
+          <table className="table-simple">
+            <thead>
+              <tr>
+                <th>เลข</th>
+                <th>ยอดจำกัด</th>
+                <th>ยอดใช้แล้ว</th>
+                <th>คงเหลือ</th>
+                <th className="text-right">จัดการ</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {displayLimits.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-sm text-[--color-text-muted]">
+                    ยังไม่มีเลขอั้นสำหรับประเภทนี้
+                  </td>
+                </tr>
+              ) : (
+                displayLimits.map((limit) => {
+                  const paddedNumber = String(limit.number).padStart(
+                    typeOptions.find((opt) => opt.value === limit.type)?.digits ?? 2,
+                    '0',
+                  );
+                  const amountLimit = Number(limit.amountlimit);
+                  const used = Number(limit.used);
+                  const remaining = amountLimit - used;
+                  const nearingLimit = remaining <= amountLimit * 0.1;
+                  const closed = isNumberClosed(limit.type, limit.number);
+
+                  return (
+                    <tr key={limit.id}>
+                      <td className="font-mono text-sm tracking-widest">{paddedNumber}</td>
+                      <td className="text-[--color-text]">
+                        {editingLimitId === limit.id ? (
+                          <input
+                            type="number"
+                            value={newLimitAmount}
+                            onChange={(e) => setNewLimitAmount(e.target.value)}
+                            className="w-24 rounded-md border border-[--color-border] px-2 py-2 text-sm text-right"
+                          />
+                        ) : (
+                          amountLimit.toFixed(2)
+                        )}
+                      </td>
+                      <td className="text-[--color-text-muted]">{used.toFixed(2)}</td>
+                      <td className={nearingLimit ? 'text-[#b45309]' : 'text-[#15803d]'}>
+                        {remaining.toFixed(2)}
+                      </td>
+                      <td className="text-right">
+                        {editingLimitId === limit.id ? (
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => handleSaveLimit(limit.id)} className="btn-primary">
+                              บันทึก
+                            </button>
+                            <button onClick={handleCancelEdit} className="btn-outline">
+                              ยกเลิก
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end gap-2">
+                            {!closed && (
+                              <button onClick={() => handleEditLimit(limit)} className="btn-outline">
+                                แก้ไข
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteLimit(limit.id)} className="btn-danger">
+                              ลบ
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
-

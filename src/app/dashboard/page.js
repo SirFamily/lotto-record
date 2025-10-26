@@ -1,10 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
-import Link from 'next/link';
+const quickActions = [
+  {
+    href: '/buy-lottery',
+    title: 'บันทึกโพยใหม่',
+    text: 'กรอกเลขและยอดจากหน้าฟอร์มที่อ่านง่าย รู้ผลก่อนกดยืนยัน.',
+  },
+  {
+    href: '/purchase-history',
+    title: 'ดูประวัติโพย',
+    text: 'ค้นหาและเปิดดูรายละเอียดโพยย้อนหลังอย่างรวดเร็ว.',
+  },
+  {
+    href: '/system-management',
+    title: 'ตั้งค่าเลขและอัตราจ่าย',
+    text: 'ปรับเลขอั้น เลขปิด และราคาจ่ายให้สอดคล้องกับรอบปัจจุบัน.',
+  },
+];
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -12,39 +29,44 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login'); // Redirect to login if not authenticated
+      router.push('/login');
     }
   }, [user, loading, router]);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
+        กำลังโหลดแดชบอร์ด...
+      </div>
+    );
   }
 
   if (!user) {
-    return null; // Already logged in, redirecting
+    return null;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50 mb-8">
-          Dashboard
-        </h1>
-        <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-8">
-          Welcome to your dashboard, {user.username}!
+    <div className="mobile-stack">
+      <section className="card p-6 sm:p-8">
+        <div className="pill">แดชบอร์ด</div>
+        <h1 className="section-heading mt-4">สวัสดี {user.username}</h1>
+        <p className="section-copy mt-3">
+          เลือกเมนูที่ต้องการได้จากด้านล่าง ระบบออกแบบให้ใช้งานง่ายบนมือถือและแสดงเฉพาะข้อมูลสำคัญ
         </p>
-        <div className="flex flex-col gap-4 w-full max-w-sm">
-          <Link href="/buy-lottery" className="p-4 bg-blue-500 text-white rounded-md text-center hover:bg-blue-600">
-            ซื้อหวย (Buy Lottery)
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {quickActions.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="card rounded-md border border-[--color-border] p-5 transition hover:border-[--color-primary]"
+          >
+            <p className="text-base font-semibold text-[--color-text]">{item.title}</p>
+            <p className="mt-2 text-sm text-[--color-text-muted]">{item.text}</p>
           </Link>
-          <Link href="/purchase-history" className="p-4 bg-green-500 text-white rounded-md text-center hover:bg-green-600">
-            ประวัติการซื้อ (Purchase History)
-          </Link>
-          <Link href="/system-management" className="p-4 bg-purple-500 text-white rounded-md text-center hover:bg-purple-600">
-            จัดการระบบ (System Management)
-          </Link>
-        </div>
-      </main>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,18 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
 import BillConfirmationModal from './BillConfirmationModal';
 
-const typeToThaiText = (type) => {
-  switch (type) {
-    case 'twoNumberTop': return '2 ตัวบน';
-    case 'twoNumberButton': return '2 ตัวล่าง';
-    case 'threeNumberTop': return '3 ตัวบน';
-    case 'threeNumberTode': return '3 ตัวโต๊ด';
-    default: return '';
-  }
+const betTypeOptions = [
+  { key: '2', label: 'เลข 2 ตัว', description: 'เลือกบน-ล่าง', digits: 2 },
+  { key: '3', label: 'เลข 3 ตัว', description: 'รองรับบนและโต๊ด', digits: 3 },
+];
+
+const betTargetLabels = {
+  top: 'บน',
+  bottom: 'ล่าง',
+  tote: 'โต๊ด',
+};
+
+const presetAmounts = ['20', '50', '100', '200'];
+
+const toastStyle = {
+  success: 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#14532d]',
+  warning: 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]',
+  error: 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]',
+  info: 'border border-[--color-border] bg-[--color-surface] text-[--color-text]',
 };
 
 const generateNumbers = (digits) => {
@@ -33,16 +43,16 @@ const generateThreeDigitPermutations = (number) => {
     digits[1] + digits[0] + digits[2],
     digits[1] + digits[2] + digits[0],
     digits[2] + digits[0] + digits[1],
-    digits[2] + digits[1] + digits[0]
+    digits[2] + digits[1] + digits[0],
   ];
   return [...new Set(permutations)];
 };
 
 const canReverseNumber = (number, type) => {
-  if (type === "2") {
+  if (type === '2') {
     return number[0] !== number[1];
   }
-  if (type === "3") {
+  if (type === '3') {
     const digits = number.split('');
     return new Set(digits).size > 1;
   }
@@ -51,50 +61,56 @@ const canReverseNumber = (number, type) => {
 
 export default function LotterySaleForm() {
   const { token } = useAuth();
-  const [currentBetType, setCurrentBetType] = useState("2");
+
+  const [currentBetType, setCurrentBetType] = useState('2');
   const [previewNumbers, setPreviewNumbers] = useState([]);
-  const [billItems, setBillItems] = useState([]);
   const [numberInput, setNumberInput] = useState('');
-  const [amountTop, setAmountTop] = useState('0');
-  const [amountBottom, setAmountBottom] = useState('0');
-  const [amountTote, setAmountTote] = useState('0');
+  const [amounts, setAmounts] = useState({ top: '0', bottom: '0', tote: '0' });
+  const [billItems, setBillItems] = useState([]);
   const [remark, setRemark] = useState('');
-  const [message, setMessage] = useState('');
+  const [toast, setToast] = useState({ text: '', type: 'info' });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const isThreeDigit = currentBetType === "3";
+  const isThreeDigit = currentBetType === '3';
   const numberInputMaxLength = isThreeDigit ? 3 : 2;
+  const activeTargets = isThreeDigit ? ['top', 'tote'] : ['top', 'bottom'];
+
+  useEffect(() => {
+    if (!toast.text) return;
+    const timeout = setTimeout(() => setToast({ text: '', type: 'info' }), 3000);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+
+  const showToast = (text, type = 'info') => {
+    setToast({ text, type });
+  };
 
   const handleBetTypeChange = (type) => {
     setCurrentBetType(type);
     setPreviewNumbers([]);
     setNumberInput('');
-    setAmountTop('0');
-    setAmountBottom('0');
-    setAmountTote('0');
-    setMessage('');
+    setAmounts({ top: '0', bottom: '0', tote: '0' });
+    showToast(type === '2' ? 'สลับเป็นเลข 2 ตัว' : 'สลับเป็นเลข 3 ตัว');
   };
 
   const validateNumberInput = (value, type) => {
-    if (!value || value.length === 0) return { valid: false, message: "กรุณากรอกเลข" };
-    if (!/^\d+$/.test(value)) return { valid: false, message: "กรุณากรอกเฉพาะตัวเลข" };
-    const requiredLength = type === "2" ? 2 : 3;
-    if (value.length !== requiredLength) return { valid: false, message: `เลข ${type} ตัวต้องมี ${requiredLength} หลัก` };
+    if (!value) {
+      return { valid: false, message: 'กรุณากรอกเลขก่อนเพิ่ม' };
+    }
+    if (!/^\d+$/.test(value)) {
+      return { valid: false, message: 'เลขต้องเป็นตัวเลขเท่านั้น' };
+    }
+    const requiredLength = type === '2' ? 2 : 3;
+    if (value.length !== requiredLength) {
+      return { valid: false, message: `เลขประเภทนี้ต้องมี ${requiredLength} หลัก` };
+    }
     return { valid: true, number: value };
-  };
-
-  const validateAmountInput = (amount) => {
-    if (!amount || amount.length === 0) return { valid: false, message: "กรุณากรอกจำนวนเงิน" };
-    if (!/^[0-9.]+$/.test(amount)) return { valid: false, message: "กรุณากรอกเฉพาะตัวเลข" };
-    const num = parseFloat(amount);
-    if (isNaN(num) || num < 0) return { valid: false, message: "จำนวนเงินต้องเป็นตัวเลขและมากกว่า 0" };
-    return { valid: true, amount: num };
   };
 
   const handleNumberInputChange = (e) => {
     const value = e.target.value;
     if (value.length > numberInputMaxLength) return;
-    if (!/^[0-9]*$/.test(value)) return;
+    if (!/^\d*$/.test(value)) return;
     setNumberInput(value);
     if (value.length === numberInputMaxLength) {
       addNumberToPreview(value);
@@ -102,25 +118,22 @@ export default function LotterySaleForm() {
   };
 
   const handleNumberInputKeyDown = (e) => {
-    if (e.key === " ") {
+    if (e.key === ' ') {
       e.preventDefault();
       handleReversePreviewNumbers();
-    } else if (e.key === "Enter") {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       addNumberToPreview(numberInput);
     }
   };
 
   const addNumberToPreview = (numValue) => {
-    setMessage('');
     const validation = validateNumberInput(numValue, currentBetType);
     if (!validation.valid) {
-      setMessage(validation.message);
+      showToast(validation.message, 'warning');
       return;
     }
-
-    const numToAdd = validation.number;
-    setPreviewNumbers((prev) => [...prev, numToAdd]);
+    setPreviewNumbers((prev) => [...prev, validation.number]);
     setNumberInput('');
   };
 
@@ -128,61 +141,94 @@ export default function LotterySaleForm() {
     setPreviewNumbers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const clearPreview = () => setPreviewNumbers([]);
+  const clearPreview = () => {
+    setPreviewNumbers([]);
+    showToast('ล้างรายการเลขแล้ว');
+  };
 
   const removeDuplicates = () => {
-    setPreviewNumbers((prev) => [...new Set(prev)]);
-    setMessage('ลบเลขซ้ำเรียบร้อยแล้ว');
+    setPreviewNumbers((prev) => {
+      const unique = [...new Set(prev)];
+      if (unique.length !== prev.length) {
+        showToast('ลบเลขซ้ำออกแล้ว', 'success');
+      }
+      return unique;
+    });
   };
 
   const addDuplicateNumbers = () => {
-    const duplicates = generateNumbers(currentBetType === "2" ? 2 : 3).filter(num => {
+    const duplicates = generateNumbers(numberInputMaxLength).filter((num) => {
       const digits = num.split('');
-      return digits.every(d => d === digits[0]);
+      return digits.every((d) => d === digits[0]);
     });
-    const newNumbers = [...previewNumbers, ...duplicates];
-    setPreviewNumbers(newNumbers);
-    setMessage('เพิ่มเลขเบิ้ลเรียบร้อยแล้ว');
+    setPreviewNumbers((prev) => [...prev, ...duplicates]);
+    showToast('เพิ่มเลขเบิ้ล/ตองเข้ารายการแล้ว', 'success');
   };
 
   const handleReversePreviewNumbers = () => {
-    if (previewNumbers.length === 0) return;
-    const reversedNumbers = [];
-    previewNumbers.forEach(num => {
-      if (!canReverseNumber(num, currentBetType)) return;
+    if (previewNumbers.length === 0) {
+      showToast('ยังไม่มีเลขให้กลับ', 'warning');
+      return;
+    }
 
+    const reversedNumbers = [];
+    previewNumbers.forEach((num) => {
+      if (!canReverseNumber(num, currentBetType)) return;
       if (num.length === 2) {
         const reversed = num.split('').reverse().join('');
         if (!previewNumbers.includes(reversed)) reversedNumbers.push(reversed);
       } else if (num.length === 3) {
-        generateThreeDigitPermutations(num).forEach(perm => {
+        generateThreeDigitPermutations(num).forEach((perm) => {
           if (!previewNumbers.includes(perm)) reversedNumbers.push(perm);
         });
       }
     });
-    setPreviewNumbers(prev => [...new Set([...prev, ...reversedNumbers])]);
+
+    if (reversedNumbers.length === 0) {
+      showToast('ไม่มีเลขใหม่หลังกลับเลข');
+    } else {
+      setPreviewNumbers((prev) => [...new Set([...prev, ...reversedNumbers])]);
+      showToast(`เพิ่มเลขกลับ ${reversedNumbers.length} รายการ`, 'success');
+    }
+  };
+
+  const setAmountValue = (target, value) => {
+    setAmounts((prev) => ({ ...prev, [target]: value }));
+  };
+
+  const addPresetAmount = (target, value) => {
+    const current = parseFloat(amounts[target] || '0');
+    const next = (current + parseFloat(value)).toString();
+    setAmountValue(target, next);
   };
 
   const addBillItem = () => {
-    if (previewNumbers.length === 0) { setMessage("กรุณาเพิ่มหมายเลขก่อน"); return; }
-    const topNum = parseFloat(amountTop) || 0;
-    const botNum = !isThreeDigit ? (parseFloat(amountBottom) || 0) : 0;
-    const toteNum = isThreeDigit ? (parseFloat(amountTote) || 0) : 0;
-    if (topNum === 0 && botNum === 0 && toteNum === 0) { setMessage('กรุณากรอกจำนวนเงินอย่างน้อยหนึ่งช่อง'); return; }
+    if (previewNumbers.length === 0) {
+      showToast('กรุณาเพิ่มเลขก่อนนำเข้าตาราง', 'warning');
+      return;
+    }
+
+    const topNum = parseFloat(amounts.top) || 0;
+    const bottomNum = !isThreeDigit ? parseFloat(amounts.bottom) || 0 : 0;
+    const toteNum = isThreeDigit ? parseFloat(amounts.tote) || 0 : 0;
+
+    if (topNum === 0 && bottomNum === 0 && toteNum === 0) {
+      showToast('กรุณาระบุยอดอย่างน้อยหนึ่งช่อง', 'warning');
+      return;
+    }
 
     const newBillItem = {
       id: Date.now(),
       numbers: [...previewNumbers],
       top: topNum,
-      bottom: botNum,
+      bottom: bottomNum,
       tote: toteNum,
     };
 
-    setBillItems(prev => [...prev, newBillItem]);
+    setBillItems((prev) => [...prev, newBillItem]);
     setPreviewNumbers([]);
-    setAmountTop('0');
-    setAmountBottom('0');
-    setAmountTote('0');
+    setAmounts({ top: '0', bottom: '0', tote: '0' });
+    showToast('เพิ่มลงตารางโพยแล้ว', 'success');
   };
 
   const deleteBillItem = (id) => {
@@ -191,30 +237,33 @@ export default function LotterySaleForm() {
 
   const handleSaveBill = () => {
     if (billItems.length === 0) {
-      setMessage('ไม่มีรายการบิลให้บันทึก');
+      showToast('ยังไม่มีรายการโพยให้บันทึก', 'warning');
       return;
     }
     setIsModalOpen(true);
   };
 
-  const confirmSaveBill = async (validatedItems, remark) => {
+  const confirmSaveBill = async (validatedItems, confirmedRemark) => {
     try {
       const dateEnd = calculateDateEnd();
       const res = await fetch('/api/bills', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ remark, items: validatedItems, dateEnd }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ remark: confirmedRemark, items: validatedItems, dateEnd }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage(`บันทึกบิลเรียบร้อยแล้ว!`);
+        showToast('บันทึกโพยเรียบร้อย', 'success');
         handleCancelBill();
       } else {
-        setMessage(data.message || 'ไม่สามารถบันทึกบิลได้');
+        showToast(data.message || 'ไม่สามารถบันทึกโพยได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error saving bill');
       console.error('Error saving bill:', error);
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     } finally {
       setIsModalOpen(false);
     }
@@ -227,7 +276,8 @@ export default function LotterySaleForm() {
   const handleCancelBill = () => {
     setBillItems([]);
     setRemark('');
-    setMessage('ยกเลิกบิลแล้ว');
+    setPreviewNumbers([]);
+    setAmounts({ top: '0', bottom: '0', tote: '0' });
   };
 
   const totalAmount = useMemo(() => {
@@ -239,7 +289,7 @@ export default function LotterySaleForm() {
   }, [billItems]);
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100">
+    <div className="mobile-stack">
       {isModalOpen && (
         <BillConfirmationModal
           billItems={billItems}
@@ -248,119 +298,250 @@ export default function LotterySaleForm() {
           onCancel={cancelSaveBill}
         />
       )}
-      <h3 className="text-2xl md:text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-        บันทึกการซื้อหวยรัฐบาล
-      </h3>
 
-      {message && <div className="fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 bg-blue-500 text-white">{message}</div>}
+      {toast.text && (
+        <div className={`toast fixed left-1/2 top-20 z-40 w-[min(90vw,360px)] -translate-x-1/2 ${toastStyle[toast.type]}`}>
+          {toast.text}
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-3 mb-8">
-        <button onClick={() => handleBetTypeChange("2")} className={`px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 ${currentBetType === "2" ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 shadow-lg shadow-yellow-200' : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'}`}>2 ตัว</button>
-        <button onClick={() => handleBetTypeChange("3")} className={`px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 ${currentBetType === "3" ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 shadow-lg shadow-yellow-200' : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'}`}>3 ตัว</button>
-      </div>
+      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
+        <p className="text-sm font-medium text-[--color-text]">เลือกประเภทเลข</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {betTypeOptions.map((option) => {
+            const isActive = option.key === currentBetType;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => handleBetTypeChange(option.key)}
+                className={`rounded-md border px-4 py-3 text-left ${
+                  isActive
+                    ? 'border-[--color-primary] bg-[--color-primary-soft] text-[--color-primary]'
+                    : 'border-[--color-border] text-[--color-text]'
+                }`}
+              >
+                <p className="text-sm font-semibold">{option.label}</p>
+                <p className="mt-1 text-xs text-[--color-text-muted]">{option.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-      <div className="mb-6">
-        <div className="flex gap-3 items-start flex-col md:flex-row">
-          <div id="preview-container" className="preview-container flex-1 w-full border-2 border-dashed border-blue-300 rounded-xl p-4 flex flex-wrap gap-2 bg-blue-50/50">
-            {previewNumbers.length === 0 ? <span className="text-gray-400 text-lg">เลขที่เลือก...</span> : previewNumbers.map((num, index) => (
-              <button key={index} onClick={() => removeFromPreview(index)} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-red-500 hover:to-red-600 transition-all shadow-md hover:shadow-lg font-semibold">{num}</button>
-            ))}
+      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
+        <div className="mobile-stack sm:flex sm:items-end sm:gap-4">
+          <div className="sm:w-60">
+            <label htmlFor="number-input" className="text-sm font-medium text-[--color-text]">
+              เพิ่มเลข
+            </label>
+            <input
+              id="number-input"
+              type="text"
+              value={numberInput}
+              onChange={handleNumberInputChange}
+              onKeyDown={handleNumberInputKeyDown}
+              maxLength={numberInputMaxLength}
+              placeholder={isThreeDigit ? 'เช่น 527' : 'เช่น 19'}
+              className="mt-2 w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
+            />
+            <p className="mt-2 text-xs text-[--color-text-muted]">
+              Enter เพื่อเพิ่มเลข / Space เพื่อกลับเลขอัตโนมัติ
+            </p>
           </div>
-          <div className="flex md:flex-col gap-2 w-full md:w-auto">
-            <button onClick={clearPreview} className="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium"><i className="fas fa-trash-alt"></i><span className="md:hidden">ยกเลิก</span></button>
-            <button onClick={removeDuplicates} className="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium"><i className="fas fa-ban"></i><span className="md:hidden">ลบซ้ำ</span></button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleReversePreviewNumbers}
+              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+            >
+              กลับเลข
+            </button>
+            <button
+              type="button"
+              onClick={removeDuplicates}
+              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+            >
+              ลบเลขซ้ำ
+            </button>
+            <button
+              type="button"
+              onClick={addDuplicateNumbers}
+              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+            >
+              เพิ่มเลขเบิ้ล/ตอง
+            </button>
+            <button
+              type="button"
+              onClick={clearPreview}
+              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-danger]"
+            >
+              ล้างรายการ
+            </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 mt-3">
-          <button onClick={addDuplicateNumbers} className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"><i className="fas fa-plus"></i>เลขเบิ้ล</button>
-          <button onClick={handleReversePreviewNumbers} className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"><i className="fas fa-redo-alt"></i>เลขกลับ</button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">ใส่เลข</label>
-          <input id="number-input" type="text" value={numberInput} onChange={handleNumberInputChange} onKeyDown={handleNumberInputKeyDown} maxLength={numberInputMaxLength} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-lg" placeholder={`กรอกเลข ${currentBetType} ตัว`} />
-          <p className="text-xs text-gray-500 mt-1">กด Space เพื่อกลับเลขใน Preview</p>
+        <div className="rounded-md border border-dashed border-[--color-border] p-3">
+          {previewNumbers.length === 0 ? (
+            <p className="text-center text-sm text-[--color-text-muted]">
+              เพิ่มเลขเพื่อเตรียมบันทึก ระบบจะแสดงที่นี่ก่อนนำลงตาราง
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {previewNumbers.map((num, index) => (
+                <button
+                  key={`${num}-${index}`}
+                  type="button"
+                  onClick={() => removeFromPreview(index)}
+                  className="rounded-md border border-[--color-border] px-3 py-1 text-xs"
+                >
+                  {num} ×
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">บน</label>
-          <input id="amount-top" type="text" value={amountTop} onChange={(e) => setAmountTop(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-lg" />
-        </div>
-        {!isThreeDigit && (
-          <div id="bottom-amount-container">
-            <label className="block text-sm font-semibold mb-2 text-gray-700">ล่าง</label>
-            <input id="amount-bottom" type="text" value={amountBottom} onChange={(e) => setAmountBottom(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-lg" />
-          </div>
-        )}
-        {isThreeDigit && (
-          <div id="tote-amount-container">
-            <label className="block text-sm font-semibold mb-2 text-gray-700">โต๊ด</label>
-            <input id="amount-tote" type="text" value={amountTote} onChange={(e) => setAmountTote(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-lg" />
-          </div>
-        )}
-        <div className="flex items-end md:col-span-2">
-          <button onClick={addBillItem} className="w-full px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 font-bold"><i className="fas fa-plus"></i>เพิ่มบิล</button>
-        </div>
-      </div>
+      </section>
 
-      <div className="overflow-x-auto mb-6 rounded-xl border border-gray-200">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gradient-to-r from-gray-100 to-gray-200">
-              <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">การจ่าย</th>
-              <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">หมายเลข</th>
-              <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">ลบ</th>
-            </tr>
-          </thead>
-          <tbody id="bill-items">
-            {billItems.length === 0 ? (
-              <tr><td colSpan="3" className="px-4 py-12 text-center text-gray-500 text-lg">ไม่มีรายการบิล</td></tr>
-            ) : (
-              billItems.map((item) => (
-                <tr key={item.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4 text-sm font-semibold">
-                    <div>{item.numbers[0].length === 2 ? '2 ตัว' : '3 ตัว'}</div>
-                    <div className="flex gap-4 text-xs text-gray-500">
-                      {item.top > 0 && <span>บน</span>}
-                      {item.bottom > 0 && <span>ล่าง</span>}
-                      {item.tote > 0 && <span>โต๊ด</span>}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {[item.top > 0 && <span key="top">{item.top}</span>, item.bottom > 0 && <span key="bottom">{item.bottom}</span>, item.tote > 0 && <span key="tote">{item.tote}</span>]
-                        .filter(Boolean)
-                        .reduce((prev, curr) => [prev, <span key={Math.random()} className="mx-1">x</span>, curr])}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 font-semibold">
-                    <div className="flex flex-wrap gap-1">
-                      {item.numbers.map(num => <span key={num} className="px-2 py-1 bg-gray-200 rounded">{num}</span>)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <button onClick={() => deleteBillItem(item.id)} className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg"><i className="fas fa-trash-alt"></i></button>
+      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
+        <p className="text-sm font-medium text-[--color-text]">จำนวนเงิน</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {activeTargets.map((target) => (
+            <div key={target} className="mobile-stack">
+              <label className="text-xs font-medium text-[--color-text-muted]">
+                {betTargetLabels[target]}
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  step="1"
+                  value={amounts[target]}
+                  onChange={(e) => setAmountValue(target, e.target.value)}
+                  className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
+                />
+                <div className="flex gap-1">
+                  {presetAmounts.map((preset) => (
+                    <button
+                      key={`${target}-${preset}`}
+                      type="button"
+                      onClick={() => addPresetAmount(target, preset)}
+                      className="rounded-md border border-[--color-border] px-2 py-2 text-xs"
+                    >
+                      +{preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mobile-stack">
+        <button
+          type="button"
+          onClick={addBillItem}
+          className="btn-primary"
+        >
+          เพิ่มลงตารางโพย
+        </button>
+
+        <div className="table-wrapper">
+          <table className="table-simple">
+            <thead>
+              <tr>
+                <th>ประเภท</th>
+                <th>รายการเลข</th>
+                <th className="text-right">ยอดต่อเลข</th>
+                <th className="text-right">จำนวนเลข</th>
+                <th className="text-right">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {billItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-sm text-[--color-text-muted]">
+                    ยังไม่มีรายการในโพย
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mb-6 p-5 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200">
-        <label htmlFor="bill-notes" className="block text-sm font-semibold mb-2 text-gray-700">หมายเหตุ:</label>
-        <input id="bill-notes" type="text" value={remark} onChange={(e) => setRemark(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="บันทึกเพิ่มเติมสำหรับบิลนี้ (ถ้ามี)" />
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t-2 border-gray-200">
-        <div className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-          รวม: <span>{totalAmount.toFixed(2)}</span> บาท
+              ) : (
+                billItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.numbers[0].length === 2 ? 'เลข 2 ตัว' : 'เลข 3 ตัว'}</td>
+                    <td>
+                      <div className="flex flex-wrap gap-2">
+                        {item.numbers.map((num) => (
+                          <span
+                            key={num}
+                            className="rounded-md border border-[--color-border] px-2 py-1 text-xs"
+                          >
+                            {num}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="text-right text-sm text-[--color-text-muted]">
+                      {item.top > 0 && <div>บน: {item.top.toFixed(2)}</div>}
+                      {item.bottom > 0 && <div>ล่าง: {item.bottom.toFixed(2)}</div>}
+                      {item.tote > 0 && <div>โต๊ด: {item.tote.toFixed(2)}</div>}
+                    </td>
+                    <td className="text-right">{item.numbers.length}</td>
+                    <td className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => deleteBillItem(item.id)}
+                        className="btn-danger"
+                      >
+                        ลบ
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={handleCancelBill} className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all shadow-lg hover:shadow-xl font-semibold">ล้างตาราง</button>
-          <button onClick={handleSaveBill} className="flex-1 md:flex-none px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl font-bold">บันทึกบิล</button>
+      </section>
+
+      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
+        <label htmlFor="bill-remark" className="text-sm font-medium text-[--color-text]">
+          หมายเหตุ (ถ้ามี)
+        </label>
+        <input
+          id="bill-remark"
+          type="text"
+          value={remark}
+          onChange={(e) => setRemark(e.target.value)}
+          placeholder="เช่น โพยลูกค้าประจำ หรือเก็บเงินแล้ว"
+          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+        />
+      </section>
+
+      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5 sm:flex sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs text-[--color-text-muted]">ยอดรวมสุทธิ</p>
+          <p className="text-2xl font-semibold text-[--color-text]">
+            {totalAmount.toFixed(2)} บาท
+          </p>
         </div>
-      </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={handleCancelBill}
+            className="btn-outline"
+          >
+            รีเซ็ตแบบฟอร์ม
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveBill}
+            className="btn-primary"
+          >
+            บันทึกโพย
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

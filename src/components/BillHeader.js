@@ -1,21 +1,37 @@
 'use client';
 
+const formatter = new Intl.DateTimeFormat('th-TH', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
 export default function BillHeader({ bill, onToggle }) {
+  const billCode = String(bill.id).slice(-8).toUpperCase();
+  const totalItems = bill.items?.length ?? 0;
+  const amount = Number(bill.amount || 0);
+
+  const handleClick = () => {
+    if (onToggle) onToggle();
+  };
+
   return (
-    <div 
-      className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors"
-      onClick={onToggle}
+    <button
+      type="button"
+      onClick={handleClick}
+      className="w-full rounded-md border border-[--color-border] bg-[--color-surface] px-4 py-3 text-left transition hover:border-[--color-primary]"
     >
-      <div>
-        <p className="font-semibold text-lg">Bill ID: {String(bill.id).slice(-8)}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(bill.createAt).toLocaleString()}
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase text-[--color-text-muted]">โพย #{billCode}</p>
+          <p className="text-sm text-[--color-text]">
+            {bill.createAt ? formatter.format(new Date(bill.createAt)) : 'ไม่ระบุเวลา'}
+          </p>
+        </div>
+        <div className="text-sm text-[--color-text] sm:text-right">
+          <p className="text-base font-semibold">{amount.toFixed(2)} บาท</p>
+          <p className="text-xs text-[--color-text-muted]">{totalItems} รายการ</p>
+        </div>
       </div>
-      <div className="text-right">
-        <p className="font-semibold text-xl text-blue-600 dark:text-blue-400">{parseFloat(bill.amount).toFixed(2)} บาท</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{bill.items.length} รายการ</p>
-      </div>
-    </div>
+    </button>
   );
 }

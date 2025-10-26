@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
 
@@ -13,204 +13,250 @@ const generateNumbers = (digits) => {
   return numbers;
 };
 
+const typeOptions = [
+  { value: 'twoNumberTop', label: '2 ตัวบน', digits: 2 },
+  { value: 'twoNumberButton', label: '2 ตัวล่าง', digits: 2 },
+  { value: 'threeNumberTop', label: '3 ตัวบน', digits: 3 },
+  { value: 'threeNumberTode', label: '3 ตัวโต๊ด', digits: 3 },
+];
+
 export default function NumberClosing() {
   const { token } = useAuth();
-  const [allClosedNumbers, setAllClosedNumbers] = useState([]); // Stores all closed numbers
-  const [allLimitNumbers, setAllLimitNumbers] = useState([]); // Stores all limited numbers
+  const [allClosedNumbers, setAllClosedNumbers] = useState([]);
+  const [allLimitNumbers, setAllLimitNumbers] = useState([]);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('info');
   const [selectedType, setSelectedType] = useState('twoNumberTop');
+  const [quickNumber, setQuickNumber] = useState('');
 
-  const twoDigitNumbers = useMemo(() => generateNumbers(2), []);
-  const threeDigitNumbers = useMemo(() => generateNumbers(3), []);
+  const currentOption = useMemo(
+    () => typeOptions.find((opt) => opt.value === selectedType) ?? typeOptions[0],
+    [selectedType],
+  );
 
-  // Filtered closed numbers for display based on selectedType
-  const closedNumbersForDisplay = useMemo(() => {
-    return allClosedNumbers.filter(cn => cn.type === selectedType);
-  }, [allClosedNumbers, selectedType]);
+  const numberList = useMemo(
+    () => generateNumbers(currentOption.digits),
+    [currentOption.digits],
+  );
 
-  useEffect(() => {
-    if (token) {
-      fetchAllClosedNumbers();
-      fetchAllLimitNumbers();
-    }
-  }, [token]);
+  const showMessage = (text, type = 'info') => {
+    setMessage(text);
+    setMessageType(type);
+  };
 
-  // Refetch closed numbers when selectedType changes for display purposes
-  useEffect(() => {
-    if (token) {
-      // No need to refetch all, just re-filter for display
-    }
-  }, [selectedType, token]);
-
-  const fetchAllClosedNumbers = async () => {
+  const fetchAllClosedNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/close-numbers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok) {
         setAllClosedNumbers(data);
+        showMessage('');
       } else {
-        setMessage(data.message || 'Failed to fetch closed numbers');
+        showMessage(data.message || 'ไม่สามารถดึงรายการเลขปิดได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error fetching closed numbers');
       console.error('Error fetching closed numbers:', error);
+      showMessage('เกิดข้อผิดพลาดในการดึงรายการเลขปิด', 'error');
     }
-  };
+  }, [token]);
 
-  const fetchAllLimitNumbers = async () => {
+  const fetchAllLimitNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/limit-numbers', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok) {
         setAllLimitNumbers(data);
       } else {
-        setMessage(data.message || 'Failed to fetch limit numbers for conflict check');
+        showMessage(data.message || 'ไม่สามารถตรวจสอบเลขอั้นได้', 'error');
       }
     } catch (error) {
-      setMessage('Network error fetching limit numbers for conflict check');
-      console.error('Error fetching limit numbers for conflict check:', error);
+      console.error('Error fetching limit numbers:', error);
+      showMessage('เกิดข้อผิดพลาดในการตรวจสอบเลขอั้น', 'error');
     }
-  };
+  }, [token]);
 
-  const isNumberClosed = (type, number) => {
-    return allClosedNumbers.some(cn => cn.number === number && cn.type === type);
-  };
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      await fetchAllClosedNumbers();
+      await fetchAllLimitNumbers();
+    })();
+  }, [token, fetchAllClosedNumbers, fetchAllLimitNumbers]);
 
-  const isNumberLimited = (type, number) => {
-    return allLimitNumbers.some(ln => ln.number === number && ln.type === type);
-  };
+  const isNumberClosed = (type, number) =>
+    allClosedNumbers.some((cn) => cn.number === number && cn.type === type);
 
-  const typeToThaiText = (type) => {
-    switch (type) {
-      case 'twoNumberTop': return '2 ตัวบน';
-      case 'twoNumberButton': return '2 ตัวล่าง';
-      case 'threeNumberTop': return '3 ตัวบน';
-      case 'threeNumberTode': return '3 ตัวโต๊ด';
-      default: return '';
-    }
-  };
+  const isNumberLimited = (type, number) =>
+    allLimitNumbers.some((ln) => ln.number === number && ln.type === type);
 
   const toggleNumber = async (number) => {
-    const numString = number;
+    if (!token) return;
 
-    // Fetch latest data from DB for real-time check
     const latestClosedRes = await fetch('/api/close-numbers', {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
-    const latestClosedData = await latestClosedRes.json();
-    const latestAllClosedNumbers = latestClosedRes.ok ? latestClosedData : [];
+    const latestClosed = latestClosedRes.ok ? await latestClosedRes.json() : [];
 
-    const latestLimitedRes = await fetch('/api/limit-numbers', {
-      headers: { 'Authorization': `Bearer ${token}` },
+    const latestLimitRes = await fetch('/api/limit-numbers', {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    const latestLimitedData = await latestLimitedRes.json();
-    const latestAllLimitNumbers = latestLimitedRes.ok ? latestLimitedData : [];
+    const latestLimit = latestLimitRes.ok ? await latestLimitRes.json() : [];
 
-    const isNumberCurrentlyClosed = latestAllClosedNumbers.some(cn => cn.number === numString && cn.type === selectedType);
-    const isNumberCurrentlyLimited = latestAllLimitNumbers.some(ln => ln.number === numString && ln.type === selectedType);
+    const currentlyClosed = latestClosed.some(
+      (cn) => cn.number === number && cn.type === selectedType,
+    );
+    const currentlyLimited = latestLimit.some(
+      (ln) => ln.number === number && ln.type === selectedType,
+    );
 
-    if (!isNumberCurrentlyClosed && isNumberCurrentlyLimited) {
-      setMessage(`Cannot close number ${numString} (${typeToThaiText(selectedType)}) because it is already limited.`);
+    if (!currentlyClosed && currentlyLimited) {
+      showMessage(`ไม่สามารถปิดเลข ${number} (${currentOption.label}) ได้เพราะถูกจำกัดยอดอยู่`, 'warning');
       return;
     }
 
     try {
-      if (isNumberCurrentlyClosed) {
-        const closedEntry = latestAllClosedNumbers.find(cn => cn.number === numString && cn.type === selectedType);
+      if (currentlyClosed) {
+        const closedEntry = latestClosed.find(
+          (cn) => cn.number === number && cn.type === selectedType,
+        );
         const res = await fetch('/api/close-numbers', {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ id: closedEntry.id }),
         });
-        const data = await res.json();
         if (res.ok) {
-          setMessage(`Number ${numString} (${typeToThaiText(selectedType)}) unclosed successfully`);
-          fetchAllClosedNumbers(); // Refresh local state after successful operation
+          showMessage(`เปิดรับเลข ${number} แล้ว`, 'success');
+          fetchAllClosedNumbers();
         } else {
-          setMessage(data.message || 'Failed to unclose number');
+          const data = await res.json();
+          showMessage(data.message || 'ไม่สามารถเปิดรับเลขได้', 'error');
         }
       } else {
-        const dateEnd = calculateDateEnd(); // Calculate dateEnd
         const res = await fetch('/api/close-numbers', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ type: selectedType, number: numString, text: typeToThaiText(selectedType), dateEnd }),
+          body: JSON.stringify({
+            type: selectedType,
+            number,
+            text: currentOption.label,
+            dateEnd: calculateDateEnd(),
+          }),
         });
-        const data = await res.json();
         if (res.ok) {
-          setMessage(`Number ${numString} (${typeToThaiText(selectedType)}) closed successfully`);
-          fetchAllClosedNumbers(); // Refresh local state after successful operation
+          showMessage(`ปิดรับเลข ${number} แล้ว`, 'success');
+          fetchAllClosedNumbers();
         } else {
-          setMessage(data.message || 'Failed to close number');
+          const data = await res.json();
+          showMessage(data.message || 'ไม่สามารถปิดรับเลขได้', 'error');
         }
       }
     } catch (error) {
-      setMessage('Network error toggling number');
       console.error('Error toggling number:', error);
+      showMessage('เกิดข้อผิดพลาดในการอัปเดตเลข', 'error');
+    } finally {
+      setQuickNumber('');
     }
   };
 
-  const renderNumberButtons = (numbers) => (
-    <div className="grid grid-cols-10 gap-2 mt-4">
-      {numbers.map((number) => (
-        <button
-          key={number}
-          onClick={() => toggleNumber(number)}
-          className={`p-2 rounded text-white ${isNumberClosed(selectedType, number) ? 'bg-red-500' : 'bg-gray-500'} hover:opacity-80`}
-        >
-          {number}
-        </button>
-      ))}
-    </div>
-  );
+  const handleQuickSubmit = (e) => {
+    e.preventDefault();
+    const value = quickNumber.trim();
+    if (value.length !== currentOption.digits) {
+      showMessage(`กรุณากรอกเลขให้ครบ ${currentOption.digits} หลัก`, 'warning');
+      return;
+    }
+    if (!/^\d+$/.test(value)) {
+      showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
+      return;
+    }
+    toggleNumber(value);
+  };
+
+  const bannerClass =
+    messageType === 'success'
+      ? 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#166534]'
+      : messageType === 'warning'
+      ? 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]'
+      : 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]';
 
   return (
-    <div className="w-full mt-8">
-      <h2 className="text-2xl font-semibold mb-4">Number Closing</h2>
-      {message && <p className="text-red-500 mb-4">{message}</p>}
+    <div className="mobile-stack">
+      <div className="mobile-stack sm:flex sm:items-end sm:gap-4">
+        <div className="sm:w-64">
+          <label htmlFor="numberType" className="text-sm font-medium text-[--color-text]">
+            ประเภทเลข
+          </label>
+          <select
+            id="numberType"
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="mt-2 w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          >
+            {typeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="mb-4">
-        <label htmlFor="numberType" className="block text-lg font-medium text-gray-700 dark:text-gray-300">Select Type:</label>
-        <select
-          id="numberType"
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-        >
-          <option value="twoNumberTop">2 ตัวบน</option>
-          <option value="twoNumberButton">2 ตัวล่าง</option>
-          <option value="threeNumberTop">3 ตัวบน</option>
-          <option value="threeNumberTode">3 ตัวโต๊ด</option>
-        </select>
+        <form onSubmit={handleQuickSubmit} className="flex items-end gap-3">
+          <div>
+            <label htmlFor="quickNumber" className="text-sm font-medium text-[--color-text]">
+              ปิด/เปิดเลขแบบด่วน
+            </label>
+            <input
+              id="quickNumber"
+              type="text"
+              value={quickNumber}
+              onChange={(e) => setQuickNumber(e.target.value)}
+              maxLength={currentOption.digits}
+              placeholder={currentOption.digits === 2 ? 'เช่น 19' : 'เช่น 789'}
+              className="mt-2 w-24 rounded-md border border-[--color-border] px-3 py-3 text-center text-lg font-semibold tracking-widest"
+            />
+          </div>
+          <button type="submit" className="btn-primary">
+            สลับสถานะ
+          </button>
+        </form>
       </div>
 
-      {selectedType.includes('twoNumber') && (
-        <div>
-          <h3 className="text-xl font-semibold mt-4">2-Digit Numbers</h3>
-          {renderNumberButtons(twoDigitNumbers)}
-        </div>
+      {message && (
+        <div className={`rounded-md px-4 py-3 text-sm ${bannerClass}`}>{message}</div>
       )}
 
-      {selectedType.includes('threeNumber') && (
-        <div>
-          <h3 className="text-xl font-semibold mt-4">3-Digit Numbers</h3>
-          {renderNumberButtons(threeDigitNumbers)}
+      <div className="rounded-md border border-[--color-border] p-4">
+        <p className="text-xs text-[--color-text-muted]">แตะตัวเลขเพื่อปิดหรือเปิดรับอีกครั้ง</p>
+        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-10">
+          {numberList.map((number) => {
+            const closed = isNumberClosed(selectedType, number);
+            return (
+              <button
+                key={number}
+                type="button"
+                onClick={() => toggleNumber(number)}
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                  closed
+                    ? 'border-[#fca5a5] bg-[#fff5f5] text-[#b91c1c]'
+                    : 'border-[--color-border] bg-white text-[--color-text]'
+                }`}
+              >
+                {number}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }

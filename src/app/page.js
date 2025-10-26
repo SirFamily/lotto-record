@@ -1,9 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
+
+const highlights = [
+  {
+    title: 'บันทึกโพยได้ครบในหน้าจอเดียว',
+    text: 'เพิ่มเลขหลายชุดพร้อมกัน ปรับยอดบน-ล่างหรือโต๊ดได้ทันที ลดขั้นตอนซ้ำซ้อนและผิดพลาด.',
+  },
+  {
+    title: 'กันพลาดก่อนบันทึก',
+    text: 'ระบบตรวจสอบเลขอั้น เลขปิด และยอดเกินลิมิตให้ก่อนยืนยัน ช่วยควบคุมความเสี่ยง.',
+  },
+  {
+    title: 'ค้นหาย้อนหลังได้ไว',
+    text: 'ดูประวัติโพยย้อนหลังพร้อมข้อมูลรายละเอียด เหมาะสำหรับตรวจสอบรอบบิลและยอดขาย.',
+  },
+];
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -16,32 +31,47 @@ export default function Home() {
   }, [user, loading, router]);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-[--color-text-muted]">
+        กำลังตรวจสอบข้อมูลผู้ใช้...
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50 mb-8">
-          Welcome to the Home Page!
+    <div className="mobile-stack">
+      <section className="card p-6 sm:p-8">
+        <div className="pill">ระบบจัดการโพยสำหรับร้านหวย</div>
+        <h1 className="section-heading mt-4">
+          จดโพย จัดการเลขอั้น และติดตามยอดขายได้ในที่เดียว
         </h1>
-        {!user && (
-          <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-            <Link
-              href="/login"
-              className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            >
-              Login
+        <p className="section-copy mt-3">
+          LottoHub ถูกออกแบบให้ใช้ง่ายบนมือถือและคอมพิวเตอร์ แสดงเฉพาะสิ่งที่จำเป็น
+          และช่วยลดข้อผิดพลาดก่อนบันทึกโพยทุกครั้ง
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Link href={user ? '/dashboard' : '/register'} className="btn-primary">
+            {user ? 'ไปที่แดชบอร์ด' : 'สมัครใช้งานฟรี'}
+          </Link>
+          {!user && (
+            <Link href="/login" className="btn-outline">
+              เข้าสู่ระบบ
             </Link>
-            <Link
-              href="/register"
-              className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-            >
-              Register
-            </Link>
-          </div>
-        )}
-      </main>
+          )}
+        </div>
+      </section>
+
+      <section className="card p-6 sm:p-8">
+        <h2 className="section-heading text-[1.4rem]">ฟีเจอร์เด่นที่ผู้ใช้ชื่นชอบ</h2>
+        <ul className="mt-4 grid gap-4 sm:grid-cols-3">
+          {highlights.map((item) => (
+            <li key={item.title} className="rounded-md border border-[--color-border] p-4">
+              <p className="font-semibold text-[--color-text]">{item.title}</p>
+              <p className="mt-2 text-sm text-[--color-text-muted]">{item.text}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

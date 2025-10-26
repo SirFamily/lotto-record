@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,7 +13,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard'); // Redirect if already logged in
+      router.push('/dashboard');
     }
   }, [user, loading, router]);
 
@@ -22,45 +23,74 @@ export default function RegisterPage() {
   };
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
+        กำลังเตรียมระบบสำหรับคุณ...
+      </div>
+    );
   }
 
   if (user) {
-    return null; // Already logged in, redirecting
+    return null;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50 mb-8">
-          Register
-        </h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-            required
-          />
-          <button
-            type="submit"
-            className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-          >
-            Register
-          </button>
-        </form>
-        {error && <p className="mt-4 text-red-500">{error}</p>}
-      </main>
+    <div className="mobile-stack">
+      <section className="card p-6 sm:p-8">
+        <div className="pill">สมัครสมาชิก</div>
+        <h1 className="section-heading mt-4">เริ่มใช้ LottoHub ได้ทันที</h1>
+        <p className="section-copy mt-3">
+          สร้างบัญชีเพื่อบันทึกโพย จัดการเลขอั้น และดูรายงานได้ฟรี
+          ใช้เพียงชื่อผู้ใช้และรหัสผ่านเท่านั้น
+        </p>
+        <p className="mt-4 text-sm text-[--color-text-muted]">
+          มีบัญชีอยู่แล้ว?{' '}
+          <Link href="/login" className="text-[--color-primary]">
+            เข้าสู่ระบบ
+          </Link>
+        </p>
+      </section>
+
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 mobile-stack">
+        <label htmlFor="username" className="text-sm font-medium text-[--color-text]">
+          ชื่อผู้ใช้ (ภาษาอังกฤษหรือเลข)
+        </label>
+        <input
+          id="username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="เช่น lotto.master"
+          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          required
+          autoComplete="off"
+        />
+
+        <label htmlFor="password" className="text-sm font-medium text-[--color-text]">
+          รหัสผ่าน (อย่างน้อย 8 ตัว)
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="ตั้งรหัสผ่าน"
+          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
+
+        {error && (
+          <div className="toast border-[--color-danger] text-[--color-danger]">
+            {error}
+          </div>
+        )}
+
+        <button type="submit" className="btn-primary btn-block">
+          สมัครใช้งาน
+        </button>
+      </form>
     </div>
   );
 }

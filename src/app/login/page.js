@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,7 +13,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard'); // Redirect if already logged in
+      router.push('/dashboard');
     }
   }, [user, loading, router]);
 
@@ -22,45 +23,73 @@ export default function LoginPage() {
   };
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
+        กำลังตรวจสอบสถานะบัญชี...
+      </div>
+    );
   }
 
   if (user) {
-    return null; // Already logged in, redirecting
+    return null;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50 mb-8">
-          Login
-        </h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
-            required
-          />
-          <button
-            type="submit"
-            className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            Login
-          </button>
-        </form>
-        {error && <p className="mt-4 text-red-500">{error}</p>}
-      </main>
+    <div className="mobile-stack">
+      <section className="card p-6 sm:p-8">
+        <div className="pill">เข้าสู่ระบบ</div>
+        <h1 className="section-heading mt-4">จัดการโพยของคุณได้ทันที</h1>
+        <p className="section-copy mt-3">
+          กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าสู่แดชบอร์ด
+          หากยังไม่มีบัญชีสามารถสมัครใช้งานได้ฟรีภายในไม่กี่ขั้นตอน
+        </p>
+        <p className="mt-4 text-sm text-[--color-text-muted]">
+          ยังไม่มีบัญชี?{' '}
+          <Link href="/register" className="text-[--color-primary]">
+            สมัครสมาชิก
+          </Link>
+        </p>
+      </section>
+
+      <form onSubmit={handleSubmit} className="card p-6 sm:p-8 mobile-stack">
+        <label htmlFor="username" className="text-sm font-medium text-[--color-text]">
+          ชื่อผู้ใช้
+        </label>
+        <input
+          id="username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="เช่น agent88"
+          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          required
+          autoComplete="username"
+        />
+
+        <label htmlFor="password" className="text-sm font-medium text-[--color-text]">
+          รหัสผ่าน
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="รหัสผ่าน"
+          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          required
+          autoComplete="current-password"
+        />
+
+        {error && (
+          <div className="toast border-[--color-danger] text-[--color-danger]">
+            {error}
+          </div>
+        )}
+
+        <button type="submit" className="btn-primary btn-block">
+          เข้าสู่ระบบ
+        </button>
+      </form>
     </div>
   );
 }

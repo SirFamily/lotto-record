@@ -24,7 +24,7 @@ enum TypeEnum {
 model Item {
   id       Int      @id @default(autoincrement())
   type     TypeEnum
-  number   Int
+  number   String
   text     String
   amount   Decimal  @db.Decimal(10,2)
   state    String
@@ -53,7 +53,7 @@ model User {
 model CloseNumber {
   id       Int      @id @default(autoincrement())
   type     TypeEnum
-  number   Int?
+  number   String
   text     String
   dateEnd  DateTime
 
@@ -83,7 +83,7 @@ model LimitNumber {
   id          Int      @id @default(autoincrement())
   type        TypeEnum
   text        String
-  number      Int
+  number      String
   amountlimit Decimal  @db.Decimal(10,2)
   used        Decimal  @db.Decimal(10,2)
   dateEnd     DateTime

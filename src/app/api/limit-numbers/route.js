@@ -42,15 +42,15 @@ export async function POST(request) {
   }
 
   try {
-    const { type, number, amountlimit, text } = await request.json();
+    const { type, number, amountlimit, text, dateEnd } = await request.json();
 
-    if (!type || number === undefined || number === null || amountlimit === undefined || amountlimit === null || !text) {
-      return NextResponse.json({ message: 'Type, number, amount limit, and text are required' }, { status: 400 });
+    if (!type || number === undefined || number === null || amountlimit === undefined || amountlimit === null || !text || !dateEnd) {
+      return NextResponse.json({ message: 'Type, number, amount limit, text, and dateEnd are required' }, { status: 400 });
     }
 
     // Check if the number is already closed
     const isClosed = await prisma.closeNumber.findFirst({
-      where: { userId, type, number: parseInt(number) },
+      where: { userId, type, number },
     });
     if (isClosed) {
       return NextResponse.json({ message: 'Cannot limit a number that is already closed' }, { status: 409 });
@@ -60,11 +60,11 @@ export async function POST(request) {
       data: {
         userId,
         type,
-        number: parseInt(number),
+        number,
         amountlimit: parseFloat(amountlimit),
         used: 0, // Initialize used amount to 0
         text,
-        dateEnd: new Date(), // Assuming dateEnd is current date for limiting
+        dateEnd: new Date(dateEnd), // Use the provided dateEnd
       },
     });
 

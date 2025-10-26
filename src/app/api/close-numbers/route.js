@@ -42,19 +42,19 @@ export async function POST(request) {
   }
 
   try {
-    const { type, number, text } = await request.json();
+    const { type, number, text, dateEnd } = await request.json();
 
-    if (!type || number === undefined || number === null || !text) {
-      return NextResponse.json({ message: 'Type, number, and text are required' }, { status: 400 });
+    if (!type || number === undefined || number === null || !text || !dateEnd) {
+      return NextResponse.json({ message: 'Type, number, text, and dateEnd are required' }, { status: 400 });
     }
 
     const closeNumber = await prisma.closeNumber.create({
       data: {
         userId,
         type,
-        number: parseInt(number),
+        number,
         text,
-        dateEnd: new Date(), // Assuming dateEnd is current date for closing
+        dateEnd: new Date(dateEnd), // Use the provided dateEnd
       },
     });
 

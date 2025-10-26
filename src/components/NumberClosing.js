@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { calculateDateEnd } from '@/utils/dateHelpers';
 
 const generateNumbers = (digits) => {
   const numbers = [];
@@ -80,11 +81,11 @@ export default function NumberClosing() {
   };
 
   const isNumberClosed = (type, number) => {
-    return allClosedNumbers.some(cn => cn.number === parseInt(number) && cn.type === type);
+    return allClosedNumbers.some(cn => cn.number === number && cn.type === type);
   };
 
   const isNumberLimited = (type, number) => {
-    return allLimitNumbers.some(ln => ln.number === parseInt(number) && ln.type === type);
+    return allLimitNumbers.some(ln => ln.number === number && ln.type === type);
   };
 
   const typeToThaiText = (type) => {
@@ -98,17 +99,32 @@ export default function NumberClosing() {
   };
 
   const toggleNumber = async (number) => {
-    const numInt = parseInt(number);
-    const isCurrentlyClosed = isNumberClosed(selectedType, number);
+    const numString = number;
 
-    if (!isCurrentlyClosed && isNumberLimited(selectedType, number)) {
-      setMessage(`Cannot close number ${number} (${typeToThaiText(selectedType)}) because it is already limited.`);
+    // Fetch latest data from DB for real-time check
+    const latestClosedRes = await fetch('/api/close-numbers', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const latestClosedData = await latestClosedRes.json();
+    const latestAllClosedNumbers = latestClosedRes.ok ? latestClosedData : [];
+
+    const latestLimitedRes = await fetch('/api/limit-numbers', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const latestLimitedData = await latestLimitedRes.json();
+    const latestAllLimitNumbers = latestLimitedRes.ok ? latestLimitedData : [];
+
+    const isNumberCurrentlyClosed = latestAllClosedNumbers.some(cn => cn.number === numString && cn.type === selectedType);
+    const isNumberCurrentlyLimited = latestAllLimitNumbers.some(ln => ln.number === numString && ln.type === selectedType);
+
+    if (!isNumberCurrentlyClosed && isNumberCurrentlyLimited) {
+      setMessage(`Cannot close number ${numString} (${typeToThaiText(selectedType)}) because it is already limited.`);
       return;
     }
 
     try {
-      if (isCurrentlyClosed) {
-        const closedEntry = allClosedNumbers.find(cn => cn.number === numInt && cn.type === selectedType);
+      if (isNumberCurrentlyClosed) {
+        const closedEntry = latestAllClosedNumbers.find(cn => cn.number === numString && cn.type === selectedType);
         const res = await fetch('/api/close-numbers', {
           method: 'DELETE',
           headers: {
@@ -119,24 +135,25 @@ export default function NumberClosing() {
         });
         const data = await res.json();
         if (res.ok) {
-          setMessage(`Number ${number} (${typeToThaiText(selectedType)}) unclosed successfully`);
-          fetchAllClosedNumbers(); // Refresh all closed numbers
+          setMessage(`Number ${numString} (${typeToThaiText(selectedType)}) unclosed successfully`);
+          fetchAllClosedNumbers(); // Refresh local state after successful operation
         } else {
           setMessage(data.message || 'Failed to unclose number');
         }
       } else {
+        const dateEnd = calculateDateEnd(); // Calculate dateEnd
         const res = await fetch('/api/close-numbers', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ type: selectedType, number: numInt, text: typeToThaiText(selectedType) }),
+          body: JSON.stringify({ type: selectedType, number: numString, text: typeToThaiText(selectedType), dateEnd }),
         });
         const data = await res.json();
         if (res.ok) {
-          setMessage(`Number ${number} (${typeToThaiText(selectedType)}) closed successfully`);
-          fetchAllClosedNumbers(); // Refresh all closed numbers
+          setMessage(`Number ${numString} (${typeToThaiText(selectedType)}) closed successfully`);
+          fetchAllClosedNumbers(); // Refresh local state after successful operation
         } else {
           setMessage(data.message || 'Failed to close number');
         }

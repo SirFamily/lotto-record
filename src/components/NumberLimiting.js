@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { calculateDateEnd } from '@/utils/dateHelpers';
 const typeToThaiText = (type) => {
   switch (type) {
     case 'twoNumberTop': return '2 ตัวบน';
@@ -74,11 +75,11 @@ export default function NumberLimiting() {
   };
 
   const isNumberClosed = (type, number) => {
-    return allClosedNumbers.some(cn => cn.number === parseInt(number) && cn.type === type);
+    return allClosedNumbers.some(cn => cn.number === number && cn.type === type);
   };
 
   const isNumberLimited = (type, number) => {
-    return allLimitNumbers.some(ln => ln.number === parseInt(number) && ln.type === type);
+    return allLimitNumbers.some(ln => ln.number === number && ln.type === type);
   };
 
   const handleInputChange = (e) => {
@@ -95,30 +96,47 @@ export default function NumberLimiting() {
 
     const limitText = typeToThaiText(newLimitNumber.type);
 
-    if (isNumberClosed(newLimitNumber.type, newLimitNumber.number)) {
+    // Fetch latest data from DB for real-time check
+    const latestClosedRes = await fetch('/api/close-numbers', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const latestClosedData = await latestClosedRes.json();
+    const latestAllClosedNumbers = latestClosedRes.ok ? latestClosedData : [];
+
+    const latestLimitedRes = await fetch('/api/limit-numbers', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const latestLimitedData = await latestLimitedRes.json();
+    const latestAllLimitNumbers = latestLimitedRes.ok ? latestLimitedData : [];
+
+    const isNumberCurrentlyClosed = latestAllClosedNumbers.some(cn => cn.number === newLimitNumber.number && cn.type === newLimitNumber.type);
+    const isNumberCurrentlyLimited = latestAllLimitNumbers.some(ln => ln.number === newLimitNumber.number && ln.type === newLimitNumber.type);
+
+    if (isNumberCurrentlyClosed) {
       setMessage('Cannot limit a number that is already closed.');
       return;
     }
 
-    if (isNumberLimited(newLimitNumber.type, newLimitNumber.number)) {
+    if (isNumberCurrentlyLimited) {
       setMessage('This number is already limited.');
       return;
     }
 
     try {
+      const dateEnd = calculateDateEnd(); // Calculate dateEnd
       const res = await fetch('/api/limit-numbers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...newLimitNumber, text: limitText }),
+        body: JSON.stringify({ ...newLimitNumber, text: limitText, dateEnd }),
       });
       const data = await res.json();
       if (res.ok) {
         setMessage('Number limit added successfully');
         setNewLimitNumber({ type: 'twoNumberTop', number: '', amountlimit: '', text: '' });
-        fetchAllLimitNumbers();
+        fetchAllLimitNumbers(); // Refresh local state after successful operation
       } else {
         setMessage(data.message || 'Failed to add number limit');
       }
@@ -205,13 +223,13 @@ export default function NumberLimiting() {
               <option value="twoNumberTop">2 ตัวบน</option>
               <option value="twoNumberButton">2 ตัวล่าง</option>
               <option value="threeNumberTop">3 ตัวบน</option>
-              <option value="threeNumberButton">3 ตัวล่าง</option>
+              <option value="threeNumberTode">3 ตัวโต๊ด</option>
             </select>
           </div>
           <div>
             <label htmlFor="limitNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Number</label>
             <input
-              type="number"
+              type="text"
               id="limitNumber"
               name="number"
               value={newLimitNumber.number}

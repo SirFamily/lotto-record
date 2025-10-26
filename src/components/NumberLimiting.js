@@ -84,10 +84,25 @@ export default function NumberLimiting() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'number') {
+      const maxLength = newLimitNumber.type.includes('three') ? 3 : 2;
+      if (value.length > maxLength) {
+        setMessage(`Number cannot exceed ${maxLength} digits for ${typeToThaiText(newLimitNumber.type)}.`);
+        return;
+      }
+      // Ensure only digits are entered
+      if (!/^[0-9]*$/.test(value)) {
+        setMessage('Number can only contain digits.');
+        return;
+      }
+    }
+
     setNewLimitNumber((prev) => ({
       ...prev,
       [name]: value,
     }));
+    setMessage(''); // Clear message on valid input change
   };
 
   const handleAddLimit = async (e) => {
@@ -95,6 +110,13 @@ export default function NumberLimiting() {
     setMessage('');
 
     const limitText = typeToThaiText(newLimitNumber.type);
+    const maxLength = newLimitNumber.type.includes('three') ? 3 : 2;
+
+    // Final client-side validation before API call
+    if (newLimitNumber.number.length !== maxLength) {
+      setMessage(`Number must be exactly ${maxLength} digits for ${typeToThaiText(newLimitNumber.type)}.`);
+      return;
+    }
 
     // Fetch latest data from DB for real-time check
     const latestClosedRes = await fetch('/api/close-numbers', {
@@ -137,6 +159,7 @@ export default function NumberLimiting() {
         setMessage('Number limit added successfully');
         setNewLimitNumber({ type: 'twoNumberTop', number: '', amountlimit: '', text: '' });
         fetchAllLimitNumbers(); // Refresh local state after successful operation
+        fetchAllClosedNumbers(); // Also refresh closed numbers for conflict check consistency
       } else {
         setMessage(data.message || 'Failed to add number limit');
       }
@@ -235,6 +258,7 @@ export default function NumberLimiting() {
               value={newLimitNumber.number}
               onChange={handleInputChange}
               className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-zinc-700 dark:text-zinc-50"
+              maxLength={newLimitNumber.type.includes('three') ? 3 : 2}
               required
             />
           </div>

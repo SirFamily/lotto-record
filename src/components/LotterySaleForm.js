@@ -170,52 +170,80 @@ export default function LotterySaleForm() {
   const addBillItem = () => {
     if (previewNumbers.length === 0) { setMessage("กรุณาเพิ่มหมายเลขก่อน"); return; }
     const topNum = parseFloat(amountTop) || 0;
-    const botNum = currentBetType === "2" ? (parseFloat(amountBottom) || 0) : 0;
-    const toteNum = currentBetType === "3" ? (parseFloat(amountTote) || 0) : 0;
+    const botNum = !isThreeDigit ? (parseFloat(amountBottom) || 0) : 0;
+    const toteNum = isThreeDigit ? (parseFloat(amountTote) || 0) : 0;
     if (topNum === 0 && botNum === 0 && toteNum === 0) { setMessage('กรุณากรอกจำนวนเงินอย่างน้อยหนึ่งช่อง'); return; }
 
-    const newBillItems = [];
-    if (topNum > 0) {
-      const type = isThreeDigit ? 'threeNumberTop' : 'twoNumberTop';
-      const text = typeToThaiText(type);
-      previewNumbers.forEach(num => {
-        newBillItems.push({ type, text, number: num, amount: topNum });
-      });
-    }
-    if (botNum > 0) {
-      const type = 'twoNumberButton';
-      const text = typeToThaiText(type);
-      previewNumbers.forEach(num => {
-        newBillItems.push({ type, text, number: num, amount: botNum });
-      });
-    }
-    if (toteNum > 0) {
-      const type = 'threeNumberTode';
-      const text = typeToThaiText(type);
-      previewNumbers.forEach(num => {
-        newBillItems.push({ type, text, number: num, amount: toteNum });
-      });
-    }
+    const billMap = new Map(billItems.map(item => [item.number, item]));
 
-    setBillItems(prev => [...prev, ...newBillItems]);
+    previewNumbers.forEach(num => {
+      const existingItem = billMap.get(num);
+      if (existingItem) {
+        // Update existing item's prices, adding to them
+        existingItem.top += topNum;
+        existingItem.bottom += botNum;
+        existingItem.tote += toteNum;
+      } else {
+        // Add new item to the map
+        billMap.set(num, {
+          id: Date.now() + Math.random(), // unique id
+          number: num,
+          top: topNum,
+          bottom: botNum,
+          tote: toteNum,
+        });
+      }
+    });
+
+    setBillItems(Array.from(billMap.values()));
     setPreviewNumbers([]);
     setAmountTop('0');
     setAmountBottom('0');
     setAmountTote('0');
   };
 
-  const deleteBillItem = (index) => {
-    setBillItems((prev) => prev.filter((_, i) => i !== index));
+  const deleteBillItem = (id) => {
+    setBillItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleSaveBill = async () => {
     if (billItems.length === 0) { setMessage('ไม่มีรายการบิลให้บันทึก'); return; }
 
-    const itemsToSubmit = billItems.map(item => ({
-      ...item,
-      text: typeToThaiText(item.type),
-      state: 'รับได้', // Default state for now
-    }));
+    const itemsToSubmit = [];
+    for (const item of billItems) {
+      if (item.top > 0) {
+        itemsToSubmit.push({
+          type: item.number.length === 3 ? 'threeNumberTop' : 'twoNumberTop',
+          number: item.number,
+          amount: item.top,
+          text: typeToThaiText(item.number.length === 3 ? 'threeNumberTop' : 'twoNumberTop'),
+          state: 'รับได้',
+        });
+      }
+      if (item.bottom > 0) {
+        itemsToSubmit.push({
+          type: 'twoNumberButton',
+          number: item.number,
+          amount: item.bottom,
+          text: typeToThaiText('twoNumberButton'),
+          state: 'รับได้',
+        });
+      }
+      if (item.tote > 0) {
+        itemsToSubmit.push({
+          type: 'threeNumberTode',
+          number: item.number,
+          amount: item.tote,
+          text: typeToThaiText('threeNumberTode'),
+          state: 'รับได้',
+        });
+      }
+    }
+
+    if (itemsToSubmit.length === 0) {
+      setMessage('ไม่มีรายการที่สามารถบันทึกได้ (จำนวนเงินเป็น 0 ทั้งหมด)');
+      return;
+    }
 
     try {
       const dateEnd = calculateDateEnd();
@@ -244,7 +272,7 @@ export default function LotterySaleForm() {
   };
 
   const totalAmount = useMemo(() => {
-    return billItems.reduce((sum, item) => sum + item.amount, 0);
+    return billItems.reduce((sum, item) => sum + item.top + item.bottom + item.tote, 0);
   }, [billItems]);
 
   return (
@@ -318,12 +346,16 @@ export default function LotterySaleForm() {
             {billItems.length === 0 ? (
               <tr><td colSpan="3" className="px-4 py-12 text-center text-gray-500 text-lg">ไม่มีรายการบิล</td></tr>
             ) : (
-              billItems.map((item, index) => (
-                <tr key={index} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+              billItems.map((item) => (
+                <tr key={item.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-4 font-semibold">{item.number}</td>
-                  <td className="px-4 py-4 text-sm font-semibold">{item.text}: {item.amount}</td>
+                  <td className="px-4 py-4 text-sm font-semibold">
+                    {item.top > 0 && <span>บน: {item.top} </span>}
+                    {item.bottom > 0 && <span>ล่าง: {item.bottom} </span>}
+                    {item.tote > 0 && <span>โต๊ด: {item.tote}</span>}
+                  </td>
                   <td className="px-4 py-4 text-center">
-                    <button onClick={() => deleteBillItem(index)} className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg"><i className="fas fa-trash-alt"></i></button>
+                    <button onClick={() => deleteBillItem(item.id)} className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg"><i className="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               ))

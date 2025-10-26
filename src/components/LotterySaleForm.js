@@ -337,20 +337,49 @@ export default function LotterySaleForm() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {previewNumbers.map((num, index) => (
-              <button
-                key={`${num}-${index}`}
-                type="button"
-                onClick={() => removeFromPreview(index)}
-                className="rounded-md border border-[--color-border] bg-white dark:bg-zinc-900 px-3 py-1 text-xs shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                {num} &times;
-              </button>
-            ))}
+                                <button
+                                  key={`${num}-${index}`}
+                                  type="button"
+                                  onClick={() => removeFromPreview(index)}
+                                  className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  {num} &times;
+                                </button>            ))}
           </div>
         )}
       </section>
 
       <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
+        <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleReversePreviewNumbers}
+              className="btn-outline text-xs"
+            >
+              กลับเลข
+            </button>
+            <button
+              type="button"
+              onClick={removeDuplicates}
+              className="btn-outline text-xs"
+            >
+              ลบเลขซ้ำ
+            </button>
+            <button
+              type="button"
+              onClick={addDuplicateNumbers}
+              className="btn-outline text-xs"
+            >
+              เพิ่มเลขเบิ้ล/ตอง
+            </button>
+            <button
+              type="button"
+              onClick={clearPreview}
+              className="btn-danger-outline text-xs"
+            >
+              ล้างรายการ
+            </button>
+          </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           <div className="mobile-stack">
             <label htmlFor="number-input" className="text-sm font-medium text-[--color-text]">
@@ -383,36 +412,6 @@ export default function LotterySaleForm() {
             </div>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleReversePreviewNumbers}
-              className="btn-outline text-xs"
-            >
-              กลับเลข
-            </button>
-            <button
-              type="button"
-              onClick={removeDuplicates}
-              className="btn-outline text-xs"
-            >
-              ลบเลขซ้ำ
-            </button>
-            <button
-              type="button"
-              onClick={addDuplicateNumbers}
-              className="btn-outline text-xs"
-            >
-              เพิ่มเลขเบิ้ล/ตอง
-            </button>
-            <button
-              type="button"
-              onClick={clearPreview}
-              className="btn-danger-outline text-xs"
-            >
-              ล้างรายการ
-            </button>
-          </div>
       </section>
 
       <section className="mobile-stack">

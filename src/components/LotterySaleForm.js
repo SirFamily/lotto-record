@@ -315,25 +315,46 @@ export default function LotterySaleForm() {
                 key={option.key}
                 type="button"
                 onClick={() => handleBetTypeChange(option.key)}
-                className={`rounded-md border px-4 py-3 text-left ${
+                className={`rounded-md border px-4 py-3 text-left transition-colors ${ 
                   isActive
-                    ? 'border-[--color-primary] bg-[--color-primary-soft] text-[--color-primary]'
-                    : 'border-[--color-border] text-[--color-text]'
+                    ? 'bg-blue-500 border-blue-500 text-white'
+                    : 'bg-transparent border-[--color-border] hover:bg-gray-100 dark:hover:bg-zinc-800'
                 }`}
               >
-                <p className="text-sm font-semibold">{option.label}</p>
-                <p className="mt-1 text-xs text-[--color-text-muted]">{option.description}</p>
+                <p className="font-semibold">{option.label}</p>
+                <p className={`text-xs ${isActive ? 'text-blue-200' : 'text-[--color-text-muted]'}`}>{option.description}</p>
               </button>
             );
           })}
         </div>
       </section>
 
+      <section className="rounded-md border border-dashed border-[--color-border] p-3">
+        {previewNumbers.length === 0 ? (
+          <p className="text-center text-sm text-[--color-text-muted]">
+            เพิ่มเลขเพื่อเตรียมบันทึก ระบบจะแสดงที่นี่ก่อนนำลงตาราง
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {previewNumbers.map((num, index) => (
+              <button
+                key={`${num}-${index}`}
+                type="button"
+                onClick={() => removeFromPreview(index)}
+                className="rounded-md border border-[--color-border] bg-white dark:bg-zinc-900 px-3 py-1 text-xs shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                {num} &times;
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
-        <div className="mobile-stack sm:flex sm:items-end sm:gap-4">
-          <div className="sm:w-60">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <div className="mobile-stack">
             <label htmlFor="number-input" className="text-sm font-medium text-[--color-text]">
-              เพิ่มเลข
+              ใส่เลขที่นี่
             </label>
             <input
               id="number-input"
@@ -343,106 +364,62 @@ export default function LotterySaleForm() {
               onKeyDown={handleNumberInputKeyDown}
               maxLength={numberInputMaxLength}
               placeholder={isThreeDigit ? 'เช่น 527' : 'เช่น 19'}
-              className="mt-2 w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
+              className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
             />
-            <p className="mt-2 text-xs text-[--color-text-muted]">
-              Enter เพื่อเพิ่มเลข / Space เพื่อกลับเลขอัตโนมัติ
-            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {activeTargets.map((target) => (
+            <div key={target} className="mobile-stack">
+              <label className="text-sm font-medium text-[--color-text]">
+                ใส่ราคา ({betTargetLabels[target]})
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={amounts[target]}
+                onChange={(e) => setAmountValue(target, e.target.value)}
+                className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleReversePreviewNumbers}
-              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+              className="btn-outline text-xs"
             >
               กลับเลข
             </button>
             <button
               type="button"
               onClick={removeDuplicates}
-              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+              className="btn-outline text-xs"
             >
               ลบเลขซ้ำ
             </button>
             <button
               type="button"
               onClick={addDuplicateNumbers}
-              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-text]"
+              className="btn-outline text-xs"
             >
               เพิ่มเลขเบิ้ล/ตอง
             </button>
             <button
               type="button"
               onClick={clearPreview}
-              className="rounded-md border border-[--color-border] px-3 py-2 text-xs text-[--color-danger]"
+              className="btn-danger-outline text-xs"
             >
               ล้างรายการ
             </button>
           </div>
-        </div>
-
-        <div className="rounded-md border border-dashed border-[--color-border] p-3">
-          {previewNumbers.length === 0 ? (
-            <p className="text-center text-sm text-[--color-text-muted]">
-              เพิ่มเลขเพื่อเตรียมบันทึก ระบบจะแสดงที่นี่ก่อนนำลงตาราง
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {previewNumbers.map((num, index) => (
-                <button
-                  key={`${num}-${index}`}
-                  type="button"
-                  onClick={() => removeFromPreview(index)}
-                  className="rounded-md border border-[--color-border] px-3 py-1 text-xs"
-                >
-                  {num} ×
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
-        <p className="text-sm font-medium text-[--color-text]">จำนวนเงิน</p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {activeTargets.map((target) => (
-            <div key={target} className="mobile-stack">
-              <label className="text-xs font-medium text-[--color-text-muted]">
-                {betTargetLabels[target]}
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={0}
-                  step="1"
-                  value={amounts[target]}
-                  onChange={(e) => setAmountValue(target, e.target.value)}
-                  className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
-                />
-                <div className="flex gap-1">
-                  {presetAmounts.map((preset) => (
-                    <button
-                      key={`${target}-${preset}`}
-                      type="button"
-                      onClick={() => addPresetAmount(target, preset)}
-                      className="rounded-md border border-[--color-border] px-2 py-2 text-xs"
-                    >
-                      +{preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="mobile-stack">
         <button
           type="button"
           onClick={addBillItem}
-          className="btn-primary"
+          className="btn-primary w-full"
         >
           เพิ่มลงตารางโพย
         </button>
@@ -491,7 +468,7 @@ export default function LotterySaleForm() {
                       <button
                         type="button"
                         onClick={() => deleteBillItem(item.id)}
-                        className="btn-danger"
+                        className="btn-danger text-xs"
                       >
                         ลบ
                       </button>
@@ -514,7 +491,7 @@ export default function LotterySaleForm() {
           value={remark}
           onChange={(e) => setRemark(e.target.value)}
           placeholder="เช่น โพยลูกค้าประจำ หรือเก็บเงินแล้ว"
-          className="rounded-md border border-[--color-border] px-4 py-3 text-sm"
+          className="mt-2 w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
         />
       </section>
 

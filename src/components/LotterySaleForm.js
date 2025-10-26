@@ -89,17 +89,6 @@ export default function LotterySaleForm() {
     return { valid: true, amount: num };
   };
 
-  const addNumberToPreview = (numValue) => {
-    setMessage('');
-    const validation = validateNumberInput(numValue, currentBetType);
-    if (!validation.valid) {
-      setMessage(validation.message);
-      return;
-    }
-    setPreviewNumbers((prev) => [...prev, validation.number]);
-    setNumberInput('');
-  };
-
   const handleNumberInputChange = (e) => {
     const value = e.target.value;
     if (value.length > numberInputMaxLength) return;
@@ -120,17 +109,44 @@ export default function LotterySaleForm() {
     }
   };
 
+  const addNumberToPreview = (numValue) => {
+    setMessage('');
+    const validation = validateNumberInput(numValue, currentBetType);
+    if (!validation.valid) {
+      setMessage(validation.message);
+      return;
+    }
+
+    const numToAdd = validation.number;
+    // Removed duplicate check to allow adding the same number multiple times
+    // if (previewNumbers.includes(numToAdd)) {
+    //   setMessage('เลขนี้มีอยู่ใน Preview แล้ว');
+    //   return;
+    // }
+
+    setPreviewNumbers((prev) => [...prev, numToAdd]);
+    setNumberInput('');
+  };
+
   const removeFromPreview = (index) => {
     setPreviewNumbers((prev) => prev.filter((_, i) => i !== index));
   };
 
   const clearPreview = () => setPreviewNumbers([]);
 
-  const removeDuplicates = () => setPreviewNumbers((prev) => [...new Set(prev)]);
+  const removeDuplicates = () => {
+    setPreviewNumbers((prev) => [...new Set(prev)]);
+    setMessage('ลบเลขซ้ำเรียบร้อยแล้ว');
+  };
 
   const addDuplicateNumbers = () => {
-    const duplicates = generateNumbers(currentBetType === "2" ? 2 : 3).filter(num => num.split('').every(d => d === num[0]));
-    setPreviewNumbers(prev => [...new Set([...prev, ...duplicates])]);
+    const duplicates = generateNumbers(currentBetType === "2" ? 2 : 3).filter(num => {
+      const digits = num.split('');
+      return digits.every(d => d === digits[0]); // Check if all digits are the same
+    });
+    const newNumbers = [...previewNumbers, ...duplicates];
+    setPreviewNumbers(newNumbers);
+    setMessage('เพิ่มเลขเบิ้ลเรียบร้อยแล้ว');
   };
 
   const handleReversePreviewNumbers = () => {
@@ -138,6 +154,7 @@ export default function LotterySaleForm() {
     const reversedNumbers = [];
     previewNumbers.forEach(num => {
       if (!canReverseNumber(num, currentBetType)) return;
+
       if (num.length === 2) {
         const reversed = num.split('').reverse().join('');
         if (!previewNumbers.includes(reversed)) reversedNumbers.push(reversed);
@@ -159,18 +176,24 @@ export default function LotterySaleForm() {
 
     const newBillItems = [];
     if (topNum > 0) {
+      const type = isThreeDigit ? 'threeNumberTop' : 'twoNumberTop';
+      const text = typeToThaiText(type);
       previewNumbers.forEach(num => {
-        newBillItems.push({ type: isThreeDigit ? 'threeNumberTop' : 'twoNumberTop', number: num, amount: topNum });
+        newBillItems.push({ type, text, number: num, amount: topNum });
       });
     }
     if (botNum > 0) {
+      const type = 'twoNumberButton';
+      const text = typeToThaiText(type);
       previewNumbers.forEach(num => {
-        newBillItems.push({ type: 'twoNumberButton', number: num, amount: botNum });
+        newBillItems.push({ type, text, number: num, amount: botNum });
       });
     }
     if (toteNum > 0) {
+      const type = 'threeNumberTode';
+      const text = typeToThaiText(type);
       previewNumbers.forEach(num => {
-        newBillItems.push({ type: 'threeNumberTode', number: num, amount: toteNum });
+        newBillItems.push({ type, text, number: num, amount: toteNum });
       });
     }
 
@@ -239,7 +262,7 @@ export default function LotterySaleForm() {
 
       <div className="mb-6">
         <div className="flex gap-3 items-start flex-col md:flex-row">
-          <div className="preview-container flex-1 w-full border-2 border-dashed border-blue-300 rounded-xl p-4 flex flex-wrap gap-2 bg-blue-50/50">
+          <div id="preview-container" className="preview-container flex-1 w-full border-2 border-dashed border-blue-300 rounded-xl p-4 flex flex-wrap gap-2 bg-blue-50/50">
             {previewNumbers.length === 0 ? <span className="text-gray-400 text-lg">เลขที่เลือก...</span> : previewNumbers.map((num, index) => (
               <button key={index} onClick={() => removeFromPreview(index)} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-red-500 hover:to-red-600 transition-all shadow-md hover:shadow-lg font-semibold">{num}</button>
             ))}

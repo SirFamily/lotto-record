@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
@@ -117,5 +117,9 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

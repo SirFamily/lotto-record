@@ -26,13 +26,14 @@ export async function POST(request) {
   try {
     const { remark, items, dateEnd } = await request.json();
 
-    if (!items || items.length === 0 || !dateEnd) {
+    if (!items || !dateEnd) {
       return NextResponse.json({ message: 'Bill must contain items and a dateEnd' }, { status: 400 });
     }
 
-    // For now, we trust the client's calculation and state.
-    // The check for closed/limited numbers will be added later.
-    const totalBillAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+    // Calculate total amount based only on receivable items.
+    const totalBillAmount = items
+      .filter(item => item.state === 'รับได้')
+      .reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
     const bill = await prisma.bill.create({
       data: {
@@ -43,6 +44,7 @@ export async function POST(request) {
         createAt: new Date(),
         dateEnd: new Date(dateEnd),
         items: {
+          // Create all items, including closed/limited ones which will have amount = 0
           create: items.map(item => ({
             type: item.type,
             number: item.number,
@@ -54,9 +56,28 @@ export async function POST(request) {
         },
       },
       include: {
-        items: true, // Include the created items in the response
+        items: true,
       },
     });
+
+    // Update limit numbers only for items that were successfully purchased.
+    const limitUpdates = items
+      .filter(item => item.state === 'รับได้')
+      .map(item => {
+        return prisma.limitNumber.updateMany({
+          where: {
+            number: item.number,
+            type: item.type,
+          },
+          data: {
+            used: {
+              increment: parseFloat(item.amount),
+            },
+          },
+        });
+      });
+
+    await Promise.all(limitUpdates);
 
     return NextResponse.json({ message: 'Bill saved successfully', bill }, { status: 201 });
   } catch (error) {

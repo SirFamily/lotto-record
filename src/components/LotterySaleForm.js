@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
+import BillConfirmationModal from './BillConfirmationModal';
 
 const typeToThaiText = (type) => {
   switch (type) {
@@ -59,6 +60,7 @@ export default function LotterySaleForm() {
   const [amountTote, setAmountTote] = useState('0');
   const [remark, setRemark] = useState('');
   const [message, setMessage] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isThreeDigit = currentBetType === "3";
   const numberInputMaxLength = isThreeDigit ? 3 : 2;
@@ -118,12 +120,6 @@ export default function LotterySaleForm() {
     }
 
     const numToAdd = validation.number;
-    // Removed duplicate check to allow adding the same number multiple times
-    // if (previewNumbers.includes(numToAdd)) {
-    //   setMessage('เลขนี้มีอยู่ใน Preview แล้ว');
-    //   return;
-    // }
-
     setPreviewNumbers((prev) => [...prev, numToAdd]);
     setNumberInput('');
   };
@@ -142,7 +138,7 @@ export default function LotterySaleForm() {
   const addDuplicateNumbers = () => {
     const duplicates = generateNumbers(currentBetType === "2" ? 2 : 3).filter(num => {
       const digits = num.split('');
-      return digits.every(d => d === digits[0]); // Check if all digits are the same
+      return digits.every(d => d === digits[0]);
     });
     const newNumbers = [...previewNumbers, ...duplicates];
     setPreviewNumbers(newNumbers);
@@ -193,53 +189,21 @@ export default function LotterySaleForm() {
     setBillItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleSaveBill = async () => {
-    if (billItems.length === 0) { setMessage('ไม่มีรายการบิลให้บันทึก'); return; }
-
-    const itemsToSubmit = [];
-    for (const group of billItems) {
-      for (const num of group.numbers) {
-        if (group.top > 0) {
-          itemsToSubmit.push({
-            type: num.length === 3 ? 'threeNumberTop' : 'twoNumberTop',
-            number: num,
-            amount: group.top,
-            text: typeToThaiText(num.length === 3 ? 'threeNumberTop' : 'twoNumberTop'),
-            state: 'รับได้',
-          });
-        }
-        if (group.bottom > 0) {
-          itemsToSubmit.push({
-            type: 'twoNumberButton',
-            number: num,
-            amount: group.bottom,
-            text: typeToThaiText('twoNumberButton'),
-            state: 'รับได้',
-          });
-        }
-        if (group.tote > 0) {
-          itemsToSubmit.push({
-            type: 'threeNumberTode',
-            number: num,
-            amount: group.tote,
-            text: typeToThaiText('threeNumberTode'),
-            state: 'รับได้',
-          });
-        }
-      }
-    }
-
-    if (itemsToSubmit.length === 0) {
-      setMessage('ไม่มีรายการที่สามารถบันทึกได้ (จำนวนเงินเป็น 0 ทั้งหมด)');
+  const handleSaveBill = () => {
+    if (billItems.length === 0) {
+      setMessage('ไม่มีรายการบิลให้บันทึก');
       return;
     }
+    setIsModalOpen(true);
+  };
 
+  const confirmSaveBill = async (validatedItems, remark) => {
     try {
       const dateEnd = calculateDateEnd();
       const res = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ remark, items: itemsToSubmit, dateEnd }),
+        body: JSON.stringify({ remark, items: validatedItems, dateEnd }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -251,7 +215,13 @@ export default function LotterySaleForm() {
     } catch (error) {
       setMessage('Network error saving bill');
       console.error('Error saving bill:', error);
+    } finally {
+      setIsModalOpen(false);
     }
+  };
+
+  const cancelSaveBill = () => {
+    setIsModalOpen(false);
   };
 
   const handleCancelBill = () => {
@@ -270,6 +240,14 @@ export default function LotterySaleForm() {
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100">
+      {isModalOpen && (
+        <BillConfirmationModal
+          billItems={billItems}
+          remark={remark}
+          onConfirm={confirmSaveBill}
+          onCancel={cancelSaveBill}
+        />
+      )}
       <h3 className="text-2xl md:text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
         บันทึกการซื้อหวยรัฐบาล
       </h3>
@@ -356,11 +334,7 @@ export default function LotterySaleForm() {
                   </td>
                   <td className="px-4 py-4 font-semibold">
                     <div className="flex flex-wrap gap-1">
-                      {item.numbers.map((num, idx) => (
-                        <span key={`${item.id}-${num}-${idx}`} className="px-2 py-1 bg-gray-200 rounded">
-                          {num}
-                        </span>
-                      ))}
+                      {item.numbers.map(num => <span key={num} className="px-2 py-1 bg-gray-200 rounded">{num}</span>)}
                     </div>
                   </td>
                   <td className="px-4 py-4 text-center">
@@ -390,4 +364,3 @@ export default function LotterySaleForm() {
     </div>
   );
 }
-

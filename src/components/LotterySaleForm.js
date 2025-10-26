@@ -174,28 +174,15 @@ export default function LotterySaleForm() {
     const toteNum = isThreeDigit ? (parseFloat(amountTote) || 0) : 0;
     if (topNum === 0 && botNum === 0 && toteNum === 0) { setMessage('กรุณากรอกจำนวนเงินอย่างน้อยหนึ่งช่อง'); return; }
 
-    const billMap = new Map(billItems.map(item => [item.number, item]));
+    const newBillItem = {
+      id: Date.now(),
+      numbers: [...previewNumbers],
+      top: topNum,
+      bottom: botNum,
+      tote: toteNum,
+    };
 
-    previewNumbers.forEach(num => {
-      const existingItem = billMap.get(num);
-      if (existingItem) {
-        // Update existing item's prices, adding to them
-        existingItem.top += topNum;
-        existingItem.bottom += botNum;
-        existingItem.tote += toteNum;
-      } else {
-        // Add new item to the map
-        billMap.set(num, {
-          id: Date.now() + Math.random(), // unique id
-          number: num,
-          top: topNum,
-          bottom: botNum,
-          tote: toteNum,
-        });
-      }
-    });
-
-    setBillItems(Array.from(billMap.values()));
+    setBillItems(prev => [...prev, newBillItem]);
     setPreviewNumbers([]);
     setAmountTop('0');
     setAmountBottom('0');
@@ -210,33 +197,35 @@ export default function LotterySaleForm() {
     if (billItems.length === 0) { setMessage('ไม่มีรายการบิลให้บันทึก'); return; }
 
     const itemsToSubmit = [];
-    for (const item of billItems) {
-      if (item.top > 0) {
-        itemsToSubmit.push({
-          type: item.number.length === 3 ? 'threeNumberTop' : 'twoNumberTop',
-          number: item.number,
-          amount: item.top,
-          text: typeToThaiText(item.number.length === 3 ? 'threeNumberTop' : 'twoNumberTop'),
-          state: 'รับได้',
-        });
-      }
-      if (item.bottom > 0) {
-        itemsToSubmit.push({
-          type: 'twoNumberButton',
-          number: item.number,
-          amount: item.bottom,
-          text: typeToThaiText('twoNumberButton'),
-          state: 'รับได้',
-        });
-      }
-      if (item.tote > 0) {
-        itemsToSubmit.push({
-          type: 'threeNumberTode',
-          number: item.number,
-          amount: item.tote,
-          text: typeToThaiText('threeNumberTode'),
-          state: 'รับได้',
-        });
+    for (const group of billItems) {
+      for (const num of group.numbers) {
+        if (group.top > 0) {
+          itemsToSubmit.push({
+            type: num.length === 3 ? 'threeNumberTop' : 'twoNumberTop',
+            number: num,
+            amount: group.top,
+            text: typeToThaiText(num.length === 3 ? 'threeNumberTop' : 'twoNumberTop'),
+            state: 'รับได้',
+          });
+        }
+        if (group.bottom > 0) {
+          itemsToSubmit.push({
+            type: 'twoNumberButton',
+            number: num,
+            amount: group.bottom,
+            text: typeToThaiText('twoNumberButton'),
+            state: 'รับได้',
+          });
+        }
+        if (group.tote > 0) {
+          itemsToSubmit.push({
+            type: 'threeNumberTode',
+            number: num,
+            amount: group.tote,
+            text: typeToThaiText('threeNumberTode'),
+            state: 'รับได้',
+          });
+        }
       }
     }
 
@@ -272,7 +261,11 @@ export default function LotterySaleForm() {
   };
 
   const totalAmount = useMemo(() => {
-    return billItems.reduce((sum, item) => sum + item.top + item.bottom + item.tote, 0);
+    return billItems.reduce((sum, item) => {
+      const itemCount = item.numbers.length;
+      const totalForItem = (item.top + item.bottom + item.tote) * itemCount;
+      return sum + totalForItem;
+    }, 0);
   }, [billItems]);
 
   return (
@@ -337,8 +330,8 @@ export default function LotterySaleForm() {
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-gray-100 to-gray-200">
-              <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">หมายเลข</th>
               <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">การจ่าย</th>
+              <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">หมายเลข</th>
               <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">ลบ</th>
             </tr>
           </thead>
@@ -348,11 +341,27 @@ export default function LotterySaleForm() {
             ) : (
               billItems.map((item) => (
                 <tr key={item.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4 font-semibold">{item.number}</td>
                   <td className="px-4 py-4 text-sm font-semibold">
-                    {item.top > 0 && <span>บน: {item.top} </span>}
-                    {item.bottom > 0 && <span>ล่าง: {item.bottom} </span>}
-                    {item.tote > 0 && <span>โต๊ด: {item.tote}</span>}
+                    <div>{item.numbers[0].length === 2 ? '2 ตัว' : '3 ตัว'}</div>
+                    <div className="flex gap-4 text-xs text-gray-500">
+                      {item.top > 0 && <span>บน</span>}
+                      {item.bottom > 0 && <span>ล่าง</span>}
+                      {item.tote > 0 && <span>โต๊ด</span>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[item.top > 0 && <span key="top">{item.top}</span>, item.bottom > 0 && <span key="bottom">{item.bottom}</span>, item.tote > 0 && <span key="tote">{item.tote}</span>]
+                        .filter(Boolean)
+                        .reduce((prev, curr) => [prev, <span key={Math.random()} className="mx-1">x</span>, curr])}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 font-semibold">
+                    <div className="flex flex-wrap gap-1">
+                      {item.numbers.map((num, idx) => (
+                        <span key={`${item.id}-${num}-${idx}`} className="px-2 py-1 bg-gray-200 rounded">
+                          {num}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center">
                     <button onClick={() => deleteBillItem(item.id)} className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg"><i className="fas fa-trash-alt"></i></button>
@@ -381,3 +390,4 @@ export default function LotterySaleForm() {
     </div>
   );
 }
+

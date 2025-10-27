@@ -89,7 +89,7 @@ export default function LotterySaleForm() {
     setCurrentBetType(type);
     setPreviewNumbers([]);
     setNumberInput('');
-    setAmounts({ top: '0', bottom: '0', tote: '0' });
+    setAmounts({ top: '', bottom: '', tote: '' });
     showToast(type === '2' ? 'สลับเป็นเลข 2 ตัว' : 'สลับเป็นเลข 3 ตัว');
   };
 
@@ -392,7 +392,7 @@ export default function LotterySaleForm() {
               onChange={handleNumberInputChange}
               onKeyDown={handleNumberInputKeyDown}
               maxLength={numberInputMaxLength}
-              placeholder={isThreeDigit ? 'เช่น 527' : 'เช่น 19'}
+              placeholder={isThreeDigit ? 'ใส่เลข 3 ตัว' : 'ใส่เลข 2 ตัว'}
               className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
             />
           </div>
@@ -406,6 +406,7 @@ export default function LotterySaleForm() {
                 min={0}
                 step="1"
                 value={amounts[target]}
+                placeholder={'ราคา'}
                 onChange={(e) => setAmountValue(target, e.target.value)}
                 className="w-full rounded-md border border-[--color-border] px-4 py-3 text-sm"
               />

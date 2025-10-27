@@ -89,10 +89,7 @@ export default function PurchaseHistoryPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           onClick={() => setSelectedBill(null)}
         >
-          <div
-            className="card w-full max-w-3xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[--color-border] px-5 py-4">
               <p className="text-sm font-semibold text-[--color-text]">
                 รายละเอียดโพย #{String(selectedBill.id).slice(-8).toUpperCase()}

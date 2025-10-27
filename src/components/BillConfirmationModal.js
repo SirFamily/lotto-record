@@ -138,7 +138,7 @@ export default function BillConfirmationModal({ billItems, remark, onConfirm, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="card w-full max-w-3xl overflow-hidden">
+      <div className="card w-full max-w-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[--color-border] px-5 py-4">
           <div>
             <p className="text-sm font-semibold text-[--color-text]">ตรวจสอบโพยก่อนบันทึก</p>

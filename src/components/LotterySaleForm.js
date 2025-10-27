@@ -65,7 +65,7 @@ export default function LotterySaleForm() {
   const [currentBetType, setCurrentBetType] = useState('2');
   const [previewNumbers, setPreviewNumbers] = useState([]);
   const [numberInput, setNumberInput] = useState('');
-  const [amounts, setAmounts] = useState({ top: '0', bottom: '0', tote: '0' });
+  const [amounts, setAmounts] = useState({ top: '', bottom: '', tote: '' });
   const [billItems, setBillItems] = useState([]);
   const [remark, setRemark] = useState('');
   const [toast, setToast] = useState({ text: '', type: 'info' });

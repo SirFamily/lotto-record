@@ -47,8 +47,8 @@ export default function BillConfirmationModal({ billItems, remark, onConfirm, on
       try {
         setLoading(true);
         const [closedRes, limitedRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/close-numbers`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/limit-numbers`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/close-numbers', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/limit-numbers', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!closedRes.ok || !limitedRes.ok) {

@@ -22,7 +22,7 @@ export default function PurchaseHistoryPage() {
       try {
         setError('');
         setLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bills`, {
+        const res = await fetch('/api/bills', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

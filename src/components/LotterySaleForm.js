@@ -246,7 +246,7 @@ export default function LotterySaleForm() {
   const confirmSaveBill = async (validatedItems, confirmedRemark) => {
     try {
       const dateEnd = calculateDateEnd();
-      const res = await fetch('/api/bills', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bills`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         try {
-          const res = await fetch('/api/auth/validate-token', {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/validate-token`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,7 +79,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

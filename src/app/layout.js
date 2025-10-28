@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <NotificationProvider>
             <NavBar />
-            <main className="app-shell">{children}</main>
+            <main className="app-shell pt-16">{children}</main>
           </NotificationProvider>
         </AuthProvider>
       </body>

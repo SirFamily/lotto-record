@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
 import BillConfirmationModal from './BillConfirmationModal';
 
@@ -17,13 +18,6 @@ const betTargetLabels = {
 };
 
 const presetAmounts = ['20', '50', '100', '200'];
-
-const toastStyle = {
-  success: 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#14532d]',
-  warning: 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]',
-  error: 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]',
-  info: 'border border-[--color-border] bg-[--color-surface] text-[--color-text]',
-};
 
 const generateNumbers = (digits) => {
   const numbers = [];
@@ -61,6 +55,7 @@ const canReverseNumber = (number, type) => {
 
 export default function LotterySaleForm() {
   const { token } = useAuth();
+  const { showLoading, hideLoading, showToast } = useNotification();
 
   const [currentBetType, setCurrentBetType] = useState('2');
   const [previewNumbers, setPreviewNumbers] = useState([]);
@@ -68,29 +63,18 @@ export default function LotterySaleForm() {
   const [amounts, setAmounts] = useState({ top: '', bottom: '', tote: '' });
   const [billItems, setBillItems] = useState([]);
   const [remark, setRemark] = useState('');
-  const [toast, setToast] = useState({ text: '', type: 'info' });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isThreeDigit = currentBetType === '3';
   const numberInputMaxLength = isThreeDigit ? 3 : 2;
   const activeTargets = isThreeDigit ? ['top', 'tote'] : ['top', 'bottom'];
 
-  useEffect(() => {
-    if (!toast.text) return;
-    const timeout = setTimeout(() => setToast({ text: '', type: 'info' }), 3000);
-    return () => clearTimeout(timeout);
-  }, [toast]);
-
-  const showToast = (text, type = 'info') => {
-    setToast({ text, type });
-  };
-
   const handleBetTypeChange = (type) => {
     setCurrentBetType(type);
     setPreviewNumbers([]);
     setNumberInput('');
     setAmounts({ top: '', bottom: '', tote: '' });
-    showToast(type === '2' ? 'สลับเป็นเลข 2 ตัว' : 'สลับเป็นเลข 3 ตัว');
+    showToast(type === '2' ? 'สลับเป็นเลข 2 ตัว' : 'สลับเป็นเลข 3 ตัว', 'info');
   };
 
   const validateNumberInput = (value, type) => {
@@ -143,7 +127,7 @@ export default function LotterySaleForm() {
 
   const clearPreview = () => {
     setPreviewNumbers([]);
-    showToast('ล้างรายการเลขแล้ว');
+    showToast('ล้างรายการเลขแล้ว', 'info');
   };
 
   const removeDuplicates = () => {
@@ -185,7 +169,7 @@ export default function LotterySaleForm() {
     });
 
     if (reversedNumbers.length === 0) {
-      showToast('ไม่มีเลขใหม่หลังกลับเลข');
+      showToast('ไม่มีเลขใหม่หลังกลับเลข', 'info');
     } else {
       setPreviewNumbers((prev) => [...new Set([...prev, ...reversedNumbers])]);
       showToast(`เพิ่มเลขกลับ ${reversedNumbers.length} รายการ`, 'success');
@@ -227,7 +211,7 @@ export default function LotterySaleForm() {
 
     setBillItems((prev) => [...prev, newBillItem]);
     setPreviewNumbers([]);
-    setAmounts({ top: '0', bottom: '0', tote: '0' });
+    setAmounts({ top: '', bottom: '', tote: '' });
     showToast('เพิ่มลงตารางโพยแล้ว', 'success');
   };
 
@@ -244,6 +228,8 @@ export default function LotterySaleForm() {
   };
 
   const confirmSaveBill = async (validatedItems, confirmedRemark) => {
+    setIsModalOpen(false);
+    showLoading('กำลังบันทึกโพย...');
     try {
       const dateEnd = calculateDateEnd();
       const res = await fetch('/api/bills', {
@@ -265,7 +251,7 @@ export default function LotterySaleForm() {
       console.error('Error saving bill:', error);
       showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     } finally {
-      setIsModalOpen(false);
+      hideLoading();
     }
   };
 
@@ -277,7 +263,7 @@ export default function LotterySaleForm() {
     setBillItems([]);
     setRemark('');
     setPreviewNumbers([]);
-    setAmounts({ top: '0', bottom: '0', tote: '0' });
+    setAmounts({ top: '', bottom: '', tote: '' });
   };
 
   const totalAmount = useMemo(() => {
@@ -297,12 +283,6 @@ export default function LotterySaleForm() {
           onConfirm={confirmSaveBill}
           onCancel={cancelSaveBill}
         />
-      )}
-
-      {toast.text && (
-        <div className={`toast fixed left-1/2 top-20 z-40 w-[min(90vw,360px)] -translate-x-1/2 ${toastStyle[toast.type]}`}>
-          {toast.text}
-        </div>
       )}
 
       <section className="mobile-stack rounded-md border border-[--color-border] p-4 sm:p-5">
@@ -448,9 +428,9 @@ export default function LotterySaleForm() {
                     <td>{item.numbers[0].length === 2 ? 'เลข 2 ตัว' : 'เลข 3 ตัว'}</td>
                     <td>
                       <div className="flex flex-wrap gap-2">
-                        {item.numbers.map((num) => (
+                        {item.numbers.map((num, index) => (
                           <span
-                            key={num}
+                            key={`${num}-${index}`}
                             className="rounded-md border border-[--color-border] px-2 py-1 text-xs"
                           >
                             {num}

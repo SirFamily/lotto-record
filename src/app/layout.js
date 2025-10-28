@@ -1,6 +1,7 @@
 import { Prompt } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import NavBar from "@/components/NavBar";
 
 const prompt = Prompt({
@@ -21,8 +22,10 @@ export default function RootLayout({ children }) {
     <html lang="th">
       <body className={`${prompt.variable} antialiased`}>
         <AuthProvider>
-          <NavBar />
-          <main className="app-shell">{children}</main>
+          <NotificationProvider>
+            <NavBar />
+            <main className="app-shell">{children}</main>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

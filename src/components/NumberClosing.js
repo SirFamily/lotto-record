@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
 
 const generateNumbers = (digits) => {
@@ -22,10 +23,9 @@ const typeOptions = [
 
 export default function NumberClosing() {
   const { token } = useAuth();
+  const { showToast } = useNotification();
   const [allClosedNumbers, setAllClosedNumbers] = useState([]);
   const [allLimitNumbers, setAllLimitNumbers] = useState([]);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('info');
   const [selectedType, setSelectedType] = useState('twoNumberTop');
   const [quickNumber, setQuickNumber] = useState('');
 
@@ -39,11 +39,6 @@ export default function NumberClosing() {
     [currentOption.digits],
   );
 
-  const showMessage = (text, type = 'info') => {
-    setMessage(text);
-    setMessageType(type);
-  };
-
   const fetchAllClosedNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/close-numbers', {
@@ -52,15 +47,14 @@ export default function NumberClosing() {
       const data = await res.json();
       if (res.ok) {
         setAllClosedNumbers(data);
-        showMessage('');
       } else {
-        showMessage(data.message || 'ไม่สามารถดึงรายการเลขปิดได้', 'error');
+        showToast(data.message || 'ไม่สามารถดึงรายการเลขปิดได้', 'error');
       }
     } catch (error) {
       console.error('Error fetching closed numbers:', error);
-      showMessage('เกิดข้อผิดพลาดในการดึงรายการเลขปิด', 'error');
+      showToast('เกิดข้อผิดพลาดในการดึงรายการเลขปิด', 'error');
     }
-  }, [token]);
+  }, [token, showToast]);
 
   const fetchAllLimitNumbers = useCallback(async () => {
     try {
@@ -71,13 +65,13 @@ export default function NumberClosing() {
       if (res.ok) {
         setAllLimitNumbers(data);
       } else {
-        showMessage(data.message || 'ไม่สามารถตรวจสอบเลขอั้นได้', 'error');
+        showToast(data.message || 'ไม่สามารถตรวจสอบเลขอั้นได้', 'error');
       }
     } catch (error) {
       console.error('Error fetching limit numbers:', error);
-      showMessage('เกิดข้อผิดพลาดในการตรวจสอบเลขอั้น', 'error');
+      showToast('เกิดข้อผิดพลาดในการตรวจสอบเลขอั้น', 'error');
     }
-  }, [token]);
+  }, [token, showToast]);
 
   useEffect(() => {
     if (!token) return;
@@ -114,7 +108,7 @@ export default function NumberClosing() {
     );
 
     if (!currentlyClosed && currentlyLimited) {
-      showMessage(`ไม่สามารถปิดเลข ${number} (${currentOption.label}) ได้เพราะถูกจำกัดยอดอยู่`, 'warning');
+      showToast(`ไม่สามารถปิดเลข ${number} (${currentOption.label}) ได้เพราะถูกจำกัดยอดอยู่`, 'warning');
       return;
     }
 
@@ -132,11 +126,11 @@ export default function NumberClosing() {
           body: JSON.stringify({ id: closedEntry.id }),
         });
         if (res.ok) {
-          showMessage(`เปิดรับเลข ${number} แล้ว`, 'success');
+          showToast(`เปิดรับเลข ${number} แล้ว`, 'success');
           fetchAllClosedNumbers();
         } else {
           const data = await res.json();
-          showMessage(data.message || 'ไม่สามารถเปิดรับเลขได้', 'error');
+          showToast(data.message || 'ไม่สามารถเปิดรับเลขได้', 'error');
         }
       } else {
         const res = await fetch('/api/close-numbers', {
@@ -153,16 +147,16 @@ export default function NumberClosing() {
           }),
         });
         if (res.ok) {
-          showMessage(`ปิดรับเลข ${number} แล้ว`, 'success');
+          showToast(`ปิดรับเลข ${number} แล้ว`, 'success');
           fetchAllClosedNumbers();
         } else {
           const data = await res.json();
-          showMessage(data.message || 'ไม่สามารถปิดรับเลขได้', 'error');
+          showToast(data.message || 'ไม่สามารถปิดรับเลขได้', 'error');
         }
       }
     } catch (error) {
       console.error('Error toggling number:', error);
-      showMessage('เกิดข้อผิดพลาดในการอัปเดตเลข', 'error');
+      showToast('เกิดข้อผิดพลาดในการอัปเดตเลข', 'error');
     } finally {
       setQuickNumber('');
     }
@@ -172,22 +166,15 @@ export default function NumberClosing() {
     e.preventDefault();
     const value = quickNumber.trim();
     if (value.length !== currentOption.digits) {
-      showMessage(`กรุณากรอกเลขให้ครบ ${currentOption.digits} หลัก`, 'warning');
+      showToast(`กรุณากรอกเลขให้ครบ ${currentOption.digits} หลัก`, 'warning');
       return;
     }
     if (!/^\d+$/.test(value)) {
-      showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
+      showToast('กรุณากรอกเฉพาะตัวเลข', 'warning');
       return;
     }
     toggleNumber(value);
   };
-
-  const bannerClass =
-    messageType === 'success'
-      ? 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#166534]'
-      : messageType === 'warning'
-      ? 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]'
-      : 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]';
 
   return (
     <div className="mobile-stack">
@@ -231,10 +218,6 @@ export default function NumberClosing() {
         </form>
       </div>
 
-      {message && (
-        <div className={`rounded-md px-4 py-3 text-sm ${bannerClass}`}>{message}</div>
-      )}
-
       <div className="rounded-md border border-[--color-border] p-4">
         <p className="text-xs text-[--color-text-muted]">แตะตัวเลขเพื่อปิดหรือเปิดรับอีกครั้ง</p>
         <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-10">
@@ -245,7 +228,7 @@ export default function NumberClosing() {
                 key={number}
                 type="button"
                 onClick={() => toggleNumber(number)}
-                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${ 
                   closed
                     ? 'border-[#fca5a5] bg-[#fff5f5] text-[#b91c1c]'
                     : 'border-[--color-border] bg-white text-[--color-text]'
@@ -260,3 +243,4 @@ export default function NumberClosing() {
     </div>
   );
 }
+

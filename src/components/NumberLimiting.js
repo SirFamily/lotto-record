@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 import { calculateDateEnd } from '@/utils/dateHelpers';
 
 const typeOptions = [
@@ -18,10 +19,9 @@ const typeToThaiText = (type) => {
 
 export default function NumberLimiting() {
   const { token } = useAuth();
+  const { showLoading, hideLoading, showToast } = useNotification();
   const [allLimitNumbers, setAllLimitNumbers] = useState([]);
   const [allClosedNumbers, setAllClosedNumbers] = useState([]);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('info');
   const [newLimitNumber, setNewLimitNumber] = useState({
     type: 'twoNumberTop',
     number: '',
@@ -35,11 +35,6 @@ export default function NumberLimiting() {
     [allLimitNumbers, newLimitNumber.type],
   );
 
-  const showMessage = (text, type = 'info') => {
-    setMessage(text);
-    setMessageType(type);
-  };
-
   const fetchAllLimitNumbers = useCallback(async () => {
     try {
       const res = await fetch('/api/limit-numbers', {
@@ -48,15 +43,14 @@ export default function NumberLimiting() {
       const data = await res.json();
       if (res.ok) {
         setAllLimitNumbers(data);
-        showMessage('');
       } else {
-        showMessage(data.message || 'ไม่สามารถดึงเลขอั้นได้', 'error');
+        showToast(data.message || 'ไม่สามารถดึงเลขอั้นได้', 'error');
       }
     } catch (error) {
       console.error('Error fetching limit numbers:', error);
-      showMessage('เกิดข้อผิดพลาดในการดึงเลขอั้น', 'error');
+      showToast('เกิดข้อผิดพลาดในการดึงเลขอั้น', 'error');
     }
-  }, [token]);
+  }, [token, showToast]);
 
   const fetchAllClosedNumbers = useCallback(async () => {
     try {
@@ -67,13 +61,13 @@ export default function NumberLimiting() {
       if (res.ok) {
         setAllClosedNumbers(data);
       } else {
-        showMessage(data.message || 'ไม่สามารถตรวจสอบเลขปิดได้', 'error');
+        showToast(data.message || 'ไม่สามารถตรวจสอบเลขปิดได้', 'error');
       }
     } catch (error) {
       console.error('Error fetching closed numbers:', error);
-      showMessage('เกิดข้อผิดพลาดในการตรวจสอบเลขปิด', 'error');
+      showToast('เกิดข้อผิดพลาดในการตรวจสอบเลขปิด', 'error');
     }
-  }, [token]);
+  }, [token, showToast]);
 
   useEffect(() => {
     if (!token) return;
@@ -91,16 +85,15 @@ export default function NumberLimiting() {
     if (name === 'number') {
       const option = typeOptions.find((opt) => opt.value === newLimitNumber.type) ?? typeOptions[0];
       if (!/^\d*$/.test(value)) {
-        showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
+        showToast('กรุณากรอกเฉพาะตัวเลข', 'warning');
         return;
       }
       if (value.length > option.digits) {
-        showMessage(`เลขประเภทนี้ต้องมี ${option.digits} หลัก`, 'warning');
+        showToast(`เลขประเภทนี้ต้องมี ${option.digits} หลัก`, 'warning');
         return;
       }
     }
     setNewLimitNumber((prev) => ({ ...prev, [name]: value }));
-    showMessage('');
   };
 
   const handleAddLimit = async (e) => {
@@ -108,11 +101,11 @@ export default function NumberLimiting() {
     const option = typeOptions.find((opt) => opt.value === newLimitNumber.type) ?? typeOptions[0];
     const sanitizedNumber = newLimitNumber.number.trim();
     if (sanitizedNumber.length !== option.digits) {
-      showMessage(`กรุณากรอกเลขให้ครบ ${option.digits} หลัก`, 'warning');
+      showToast(`กรุณากรอกเลขให้ครบ ${option.digits} หลัก`, 'warning');
       return;
     }
     if (!/^\d+$/.test(sanitizedNumber)) {
-      showMessage('กรุณากรอกเฉพาะตัวเลข', 'warning');
+      showToast('กรุณากรอกเฉพาะตัวเลข', 'warning');
       return;
     }
 
@@ -124,10 +117,11 @@ export default function NumberLimiting() {
       (cn) => cn.number === sanitizedNumber && cn.type === newLimitNumber.type,
     );
     if (isClosed) {
-      showMessage('เลขนี้ถูกปิดรับอยู่ ไม่สามารถจำกัดยอดได้', 'warning');
+      showToast('เลขนี้ถูกปิดรับอยู่ ไม่สามารถจำกัดยอดได้', 'warning');
       return;
     }
 
+    showLoading('กำลังเพิ่มเลขอั้น...');
     try {
       const res = await fetch('/api/limit-numbers', {
         method: 'POST',
@@ -144,15 +138,17 @@ export default function NumberLimiting() {
       });
       const data = await res.json();
       if (res.ok) {
-        showMessage('เพิ่มเลขอั้นเรียบร้อย', 'success');
+        showToast('เพิ่มเลขอั้นเรียบร้อย', 'success');
         setNewLimitNumber({ type: newLimitNumber.type, number: '', amountlimit: '' });
         fetchAllLimitNumbers();
       } else {
-        showMessage(data.message || 'ไม่สามารถเพิ่มเลขอั้นได้', 'error');
+        showToast(data.message || 'ไม่สามารถเพิ่มเลขอั้นได้', 'error');
       }
     } catch (error) {
       console.error('Error adding limit number:', error);
-      showMessage('เกิดข้อผิดพลาดในการเพิ่มเลขอั้น', 'error');
+      showToast('เกิดข้อผิดพลาดในการเพิ่มเลขอั้น', 'error');
+    } finally {
+      hideLoading();
     }
   };
 
@@ -163,9 +159,10 @@ export default function NumberLimiting() {
 
   const handleSaveLimit = async (limitId) => {
     if (!newLimitAmount || Number(newLimitAmount) <= 0) {
-      showMessage('กรุณากรอกยอดจำกัดที่มากกว่า 0', 'warning');
+      showToast('กรุณากรอกยอดจำกัดที่มากกว่า 0', 'warning');
       return;
     }
+    showLoading('กำลังบันทึกยอดจำกัด...');
     try {
       const res = await fetch('/api/limit-numbers', {
         method: 'PUT',
@@ -177,20 +174,23 @@ export default function NumberLimiting() {
       });
       const data = await res.json();
       if (res.ok) {
-        showMessage('บันทึกยอดจำกัดเรียบร้อย', 'success');
+        showToast('บันทึกยอดจำกัดเรียบร้อย', 'success');
         setEditingLimitId(null);
         setNewLimitAmount('');
         fetchAllLimitNumbers();
       } else {
-        showMessage(data.message || 'ไม่สามารถอัปเดตยอดจำกัดได้', 'error');
+        showToast(data.message || 'ไม่สามารถอัปเดตยอดจำกัดได้', 'error');
       }
     } catch (error) {
       console.error('Error updating limit amount:', error);
-      showMessage('เกิดข้อผิดพลาดในการอัปเดตยอดจำกัด', 'error');
+      showToast('เกิดข้อผิดพลาดในการอัปเดตยอดจำกัด', 'error');
+    } finally {
+      hideLoading();
     }
   };
 
   const handleDeleteLimit = async (limitId) => {
+    showLoading('กำลังลบเลขอั้น...');
     try {
       const res = await fetch('/api/limit-numbers', {
         method: 'DELETE',
@@ -202,14 +202,16 @@ export default function NumberLimiting() {
       });
       const data = await res.json();
       if (res.ok) {
-        showMessage('ลบเลขอั้นเรียบร้อย', 'success');
+        showToast('ลบเลขอั้นเรียบร้อย', 'success');
         fetchAllLimitNumbers();
       } else {
-        showMessage(data.message || 'ไม่สามารถลบเลขอั้นได้', 'error');
+        showToast(data.message || 'ไม่สามารถลบเลขอั้นได้', 'error');
       }
     } catch (error) {
       console.error('Error deleting limit number:', error);
-      showMessage('เกิดข้อผิดพลาดในการลบเลขอั้น', 'error');
+      showToast('เกิดข้อผิดพลาดในการลบเลขอั้น', 'error');
+    } finally {
+      hideLoading();
     }
   };
 
@@ -217,13 +219,6 @@ export default function NumberLimiting() {
     setEditingLimitId(null);
     setNewLimitAmount('');
   };
-
-  const bannerClass =
-    messageType === 'success'
-      ? 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#166534]'
-      : messageType === 'warning'
-      ? 'border border-[#fde68a] bg-[#fff7e6] text-[#854d0e]'
-      : 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]';
 
   return (
     <div className="mobile-stack">
@@ -291,10 +286,6 @@ export default function NumberLimiting() {
           </button>
         </div>
       </form>
-
-      {message && messageType !== 'info' && (
-        <div className={`rounded-md px-4 py-3 text-sm ${bannerClass}`}>{message}</div>
-      )}
 
       <div className="rounded-md border border-[--color-border]">
         <div className="flex items-center justify-between border-b border-[--color-border] px-4 py-3">

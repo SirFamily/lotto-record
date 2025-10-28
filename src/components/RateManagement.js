@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 
 const typeToThaiText = (type) => {
   switch (type) {
@@ -20,11 +21,10 @@ const typeToThaiText = (type) => {
 
 export default function RateManagement() {
   const { token } = useAuth();
+  const { showLoading, hideLoading, showToast } = useNotification();
   const [rates, setRates] = useState([]);
   const [editingRateId, setEditingRateId] = useState(null);
   const [newPrice, setNewPrice] = useState('');
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('info');
 
   const fetchRates = useCallback(async () => {
     try {
@@ -36,17 +36,14 @@ export default function RateManagement() {
       const data = await res.json();
       if (res.ok) {
         setRates(data);
-        setMessage('');
       } else {
-        setMessage(data.message || 'ไม่สามารถดึงอัตราจ่ายได้');
-        setMessageType('error');
+        showToast(data.message || 'ไม่สามารถดึงอัตราจ่ายได้', 'error');
       }
     } catch (error) {
       console.error('Error fetching rates:', error);
-      setMessage('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-      setMessageType('error');
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     }
-  }, [token]);
+  }, [token, showToast]);
 
   useEffect(() => {
     if (!token) return;
@@ -58,10 +55,10 @@ export default function RateManagement() {
   const handleEdit = (rate) => {
     setEditingRateId(rate.id);
     setNewPrice(rate.price.toString());
-    setMessage('');
   };
 
   const handleSave = async (rateId) => {
+    showLoading('กำลังบันทึกอัตราจ่าย...');
     try {
       const res = await fetch('/api/rates', {
         method: 'PUT',
@@ -73,19 +70,18 @@ export default function RateManagement() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage('บันทึกอัตราจ่ายเรียบร้อย');
-        setMessageType('success');
+        showToast('บันทึกอัตราจ่ายเรียบร้อย', 'success');
         setEditingRateId(null);
         setNewPrice('');
         fetchRates();
       } else {
-        setMessage(data.message || 'ไม่สามารถอัปเดตอัตราจ่ายได้');
-        setMessageType('error');
+        showToast(data.message || 'ไม่สามารถอัปเดตอัตราจ่ายได้', 'error');
       }
     } catch (error) {
       console.error('Error updating rate:', error);
-      setMessage('เกิดข้อผิดพลาดในการอัปเดตอัตราจ่าย');
-      setMessageType('error');
+      showToast('เกิดข้อผิดพลาดในการอัปเดตอัตราจ่าย', 'error');
+    } finally {
+      hideLoading();
     }
   };
 
@@ -94,17 +90,8 @@ export default function RateManagement() {
     setNewPrice('');
   };
 
-  const bannerClass =
-    messageType === 'success'
-      ? 'border border-[#bbf7d0] bg-[#ecfdf3] text-[#166534]'
-      : 'border border-[#fca5a5] bg-[#fff5f5] text-[#7f1d1d]';
-
   return (
     <div className="mobile-stack">
-      {message && messageType !== 'info' && (
-        <div className={`rounded-md px-4 py-3 text-sm ${bannerClass}`}>{message}</div>
-      )}
-
       <div className="table-wrapper">
         <table className="table-simple">
           <thead>

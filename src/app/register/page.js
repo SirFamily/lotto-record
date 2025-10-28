@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { register, user, loading, error } = useAuth();
+  const { register, user, loading } = useAuth();
+  const { showLoading, hideLoading, showToast } = useNotification();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,15 +21,19 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await register(username, password);
+    showLoading('กำลังสร้างบัญชี...');
+    try {
+      await register(username, password);
+      showToast('สมัครสมาชิกสำเร็จ!', 'success');
+    } catch (error) {
+      showToast(error.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก', 'error');
+    } finally {
+      hideLoading();
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
-        กำลังเตรียมระบบสำหรับคุณ...
-      </div>
-    );
+  if (loading && !user) {
+    return null; // Let the loading modal handle the UI
   }
 
   if (user) {
@@ -80,12 +86,6 @@ export default function RegisterPage() {
           minLength={8}
           autoComplete="new-password"
         />
-
-        {error && (
-          <div className="toast border-[--color-danger] text-[--color-danger]">
-            {error}
-          </div>
-        )}
 
         <button type="submit" className="btn-primary btn-block">
           สมัครใช้งาน

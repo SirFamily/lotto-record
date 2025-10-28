@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { login, user, loading, error } = useAuth();
+  const { login, user, loading } = useAuth();
+  const { showLoading, hideLoading, showToast } = useNotification();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,15 +21,19 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await login(username, password);
+    showLoading('กำลังเข้าสู่ระบบ...');
+    try {
+      await login(username, password);
+      showToast('เข้าสู่ระบบสำเร็จ!', 'success');
+    } catch (error) {
+      showToast(error.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
+    } finally {
+      hideLoading();
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-[--color-text-muted]">
-        กำลังตรวจสอบสถานะบัญชี...
-      </div>
-    );
+  if (loading && !user) {
+    return null; // Let the loading modal handle the UI
   }
 
   if (user) {
@@ -79,12 +85,6 @@ export default function LoginPage() {
           required
           autoComplete="current-password"
         />
-
-        {error && (
-          <div className="toast border-[--color-danger] text-[--color-danger]">
-            {error}
-          </div>
-        )}
 
         <button type="submit" className="btn-primary btn-block">
           เข้าสู่ระบบ

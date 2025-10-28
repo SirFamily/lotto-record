@@ -24,10 +24,23 @@ export async function GET(request) {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
+    const whereClause = {
+      userId: userId,
+    };
+
+    if (startDate && endDate) {
+      whereClause.createAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
     const bills = await prisma.bill.findMany({
-      where: {
-        userId: userId,
-      },
+      where: whereClause,
       include: {
         items: true, // Include all items for each bill
       },
